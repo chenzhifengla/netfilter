@@ -32,12 +32,12 @@ int initNetFilter(void){
     // 初始化netfilter
 
     nfho_single.hook = (nf_hookfn *) hook_func;   // 绑定钩子函数
-    nfho_single.hooknum = NF_INET_PRE_ROUTING;  // 数据流入前触发
-    //nfho_single.hooknum = NF_BR_PRE_ROUTING;    // 数据流入网桥前触发
-    nfho_single.pf = PF_INET;
-    //nfho_single.pf = PF_BRIDGE;
-    nfho_single.priority = NF_IP_PRI_FILTER;
-    //nfho_single.priority = NF_BR_PRI_FIRST;
+//    nfho_single.hooknum = NF_INET_PRE_ROUTING;  // 数据流入前触发
+    nfho_single.hooknum = NF_BR_PRE_ROUTING;    // 数据流入网桥前触发
+//    nfho_single.pf = PF_INET;
+    nfho_single.pf = PF_BRIDGE;
+//    nfho_single.priority = NF_IP_PRI_FILTER;
+    nfho_single.priority = NF_BR_PRI_FIRST;
 
     if (strcmp(direction, "=>") == 0) {  // 如果选择单向拦截
         DEBUG("one way intercept\n");
@@ -122,11 +122,13 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
     ip_head_len = iph->ihl * 4;     // 获得首部长度
     ip_body_len = ntohs(iph->tot_len) - ip_head_len;   //获得数据部分长度,注意总长度为网络大端序，需转成小端序
 
-//    if (iph->saddr != in_aton(sourceip)
-//        || iph->daddr != in_aton(targetip)) {
-//        // 比较配置中ip与获取ip的16进制形式
-//        return NF_ACCEPT;
-//    }
+    if (iph->saddr != in_aton(sourceip)
+        || iph->daddr != in_aton(targetip)) {
+        // 比较配置中ip与获取ip的16进制形式
+        return NF_ACCEPT;
+    }
+
+//    if (iph->saddr != in_aton(sourceip))  return NF_ACCEPT;
 
     data += ip_head_len;    // 将data指向TCP/UDP报文首部
 

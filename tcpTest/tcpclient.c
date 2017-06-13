@@ -19,7 +19,6 @@
 int main() {
     int clientSocket;
     struct sockaddr_in serverAddr;
-    char* alphabet = "abcdefghijklmnopqrstuvwxyz";
     char sendbuf[100];
     clock_t start, end;
     int index;
@@ -35,7 +34,7 @@ int main() {
     bzero(&serverAddr, sizeof(serverAddr));
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(SERVER_PORT);
-    serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    serverAddr.sin_addr.s_addr = inet_addr("10.108.164.217");
 
     // 连接服务端
     if (connect(clientSocket, (struct sockaddr *) &serverAddr, sizeof(serverAddr)) < 0) {
