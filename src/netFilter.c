@@ -73,6 +73,8 @@ char mymessagebuf[100000];  // 放置缓冲区定义
 char tcp_udp_body[100000];  // 记录应用层数据
 //char xmldest[100000]; //dhy
 
+extern UserCmd userCmd; // netlink中的全局变量，表示用户指令
+
 //#define DEBUG(...) sprintf(mymessagebuf, "DEBUG:"__VA_ARGS__);sendMsgNetlink(mymessagebuf);
 #define INFO(...) sprintf(mymessagebuf, __VA_ARGS__);sendMsgNetlink(mymessagebuf);
 //#define WARNING(...) sprintf(mymessagebuf, "WARNING:"__VA_ARGS__);sendMsgNetlink(mymessagebuf);
@@ -176,7 +178,22 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
 
 //            DEBUG("UDP:%s:%d ---> %s:%d::%s", in_ntoa(sip, iph->saddr), ntohs(udphead->source), in_ntoa(dip, iph->daddr), ntohs(udphead->dest),tcp_udp_body);
 
+            // 先将指针重置为accept
+            write_lock_bh(&userCmd.lock);
+            userCmd.flag = 0;
+            write_unlock_bh(&userCmd.lock);
+
             INFO("%s", tcp_udp_body);
+            // 将消息发往用户态后sleep 500ms
+            mdelay(500);
+
+            // 尝试读取结果
+            int ans = 0;
+            read_lock_bh(&userCmd.lock);
+            ans = userCmd.flag;
+            read_unlock_bh(&userCmd.lock);
+
+            if (ans == 1) return NF_DROP;
 
             break;
         }

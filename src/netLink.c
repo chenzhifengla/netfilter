@@ -18,6 +18,8 @@ static struct{
     rwlock_t lock;  // 读写锁，用来控制pid的访问
 }user_proc;
 
+UserCmd userCmd;    // 用户指令
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0)
 struct netlink_kernel_cfg cfg;   // netlink内核配置参数
 #endif
@@ -58,6 +60,9 @@ static void recvMsgNetlink(struct sk_buff *skb) {
             }
             else if (nlh->nlmsg_type == NETLINK_TEST_DISCARD) {
                 INFO("netlink discard");
+                write_lock_bh(&userCmd.lock);
+                userCmd.flag = 1;
+                write_unlock_bh(&userCmd.lock);
             }
             else {
                 // 如果消息类型为其他指令,有待操作

@@ -14,3 +14,8 @@ int createNetlink(void);
 int sendMsgNetlink(char *message);
 
 int deleteNetlink(void);
+
+typedef struct {
+    int flag; // 是否通过，0表示accept，1表示discard
+    rwlock_t lock;  // 读写锁，用来控制对flag的访问
+} UserCmd;
