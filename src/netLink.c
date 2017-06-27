@@ -53,8 +53,14 @@ static void recvMsgNetlink(struct sk_buff *skb) {
                 user_proc.pid = 0;  // 将pid置0
                 write_unlock_bh(&user_proc.lock);   // 释放写锁
             }
-            else if (nlh->nlmsg_type == NETLINK_TEST_COMMAND){
-                // 如果消息类型为具体指令,有待操作
+            else if (nlh->nlmsg_type == NETLINK_TEST_ACCPT) {
+                INFO("netlink accept");
+            }
+            else if (nlh->nlmsg_type == NETLINK_TEST_DISCARD) {
+                INFO("netlink discard");
+            }
+            else {
+                // 如果消息类型为其他指令,有待操作
                 sendMsgNetlink("other command!");
             }
         }

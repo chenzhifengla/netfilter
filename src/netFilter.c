@@ -71,12 +71,12 @@ int releaseNetFilter(void){
 #include <linux/string.h>
 char mymessagebuf[100000];  // 放置缓冲区定义
 char tcp_udp_body[100000];  // 记录应用层数据
-char xmldest[100000]; //dhy
+//char xmldest[100000]; //dhy
 
-#define DEBUG(...) sprintf(mymessagebuf, "DEBUG:"__VA_ARGS__);sendMsgNetlink(mymessagebuf);
-#define INFO(...) sprintf(mymessagebuf, "INFO:"__VA_ARGS__);sendMsgNetlink(mymessagebuf);
-#define WARNING(...) sprintf(mymessagebuf, "WARNING:"__VA_ARGS__);sendMsgNetlink(mymessagebuf);
-#define ERROR(...) sprintf(mymessagebuf, "ERROR:"__VA_ARGS__);sendMsgNetlink(mymessagebuf);
+//#define DEBUG(...) sprintf(mymessagebuf, "DEBUG:"__VA_ARGS__);sendMsgNetlink(mymessagebuf);
+#define INFO(...) sprintf(mymessagebuf, __VA_ARGS__);sendMsgNetlink(mymessagebuf);
+//#define WARNING(...) sprintf(mymessagebuf, "WARNING:"__VA_ARGS__);sendMsgNetlink(mymessagebuf);
+//#define ERROR(...) sprintf(mymessagebuf, "ERROR:"__VA_ARGS__);sendMsgNetlink(mymessagebuf);
 
 unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct net_device *in,
                        const struct net_device *out, int (*okfn)(struct sk_buff *)) {
@@ -135,7 +135,7 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
     switch (iph->protocol) {    // 根据TCP还是UDP进行不同的处理
         case IPPROTO_ESP:
         case IPPROTO_AH:
-            DEBUG("ESP AND AH:%s ---> %s", in_ntoa(sip, iph->saddr), in_ntoa(dip, iph->daddr));
+//            DEBUG("ESP AND AH:%s ---> %s", in_ntoa(sip, iph->saddr), in_ntoa(dip, iph->daddr));
             break;
         case IPPROTO_TCP: {
             //获取tcp头，并计算其长度
@@ -147,8 +147,7 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
             strncpy(tcp_udp_body, data, tcp_body_len);
             tcp_udp_body[tcp_body_len] = '\0';
 
-            DEBUG("TCP:%s:%d ---> %s:%d::%s", in_ntoa(sip, iph->saddr), ntohs(tcphead->source),
-                  in_ntoa(dip, iph->daddr), ntohs(tcphead->dest), tcp_udp_body);
+//            DEBUG("TCP:%s:%d ---> %s:%d::%s", in_ntoa(sip, iph->saddr), ntohs(tcphead->source), in_ntoa(dip, iph->daddr), ntohs(tcphead->dest), tcp_udp_body);
 
             //tcp body长度小于最小要求长度，直接通过
             if (tcp_body_len < MIN_SIZE)
@@ -170,47 +169,48 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
             //if (udp_body_len < MIN_SIZE)
             //    return NF_ACCEPT;
 
-            extract(xmldest, "message", tcp_udp_body, 0, 100);
-            if(strcmp(xmldest,"B")==0)
-                return NF_DROP;
+//            extract(xmldest, "message", tcp_udp_body, 0, 100);
+//            if(strcmp(xmldest,"B")==0)
+//                return NF_DROP;
 
 
-            DEBUG("UDP:%s:%d ---> %s:%d::%s", in_ntoa(sip, iph->saddr), ntohs(udphead->source),
-                  in_ntoa(dip, iph->daddr), ntohs(udphead->dest),tcp_udp_body);
+//            DEBUG("UDP:%s:%d ---> %s:%d::%s", in_ntoa(sip, iph->saddr), ntohs(udphead->source), in_ntoa(dip, iph->daddr), ntohs(udphead->dest),tcp_udp_body);
+
+            INFO("%s", tcp_udp_body);
 
             break;
         }
         case IPPROTO_ICMP:{
             // icmp协议
-            DEBUG("ICMP:%s ---> %s", in_ntoa(sip, iph->saddr), in_ntoa(dip, iph->daddr));
+//            DEBUG("ICMP:%s ---> %s", in_ntoa(sip, iph->saddr), in_ntoa(dip, iph->daddr));
             break;
         }
         case IPPROTO_IGMP:{
-            DEBUG("IGMP:%s ---> %s", in_ntoa(sip, iph->saddr), in_ntoa(dip, iph->daddr));
+//            DEBUG("IGMP:%s ---> %s", in_ntoa(sip, iph->saddr), in_ntoa(dip, iph->daddr));
             break;
         }
         case IPPROTO_PUP:{
-            DEBUG("PUP:%s ---> %s", in_ntoa(sip, iph->saddr), in_ntoa(dip, iph->daddr));
+//            DEBUG("PUP:%s ---> %s", in_ntoa(sip, iph->saddr), in_ntoa(dip, iph->daddr));
             break;
         }
         case IPPROTO_IDP:{
-            DEBUG("IDP:%s ---> %s", in_ntoa(sip, iph->saddr), in_ntoa(dip, iph->daddr));
+//            DEBUG("IDP:%s ---> %s", in_ntoa(sip, iph->saddr), in_ntoa(dip, iph->daddr));
             break;
         }
         case IPPROTO_IP:{
-            DEBUG("IP:%s ---> %s", in_ntoa(sip, iph->saddr), in_ntoa(dip, iph->daddr));
+//            DEBUG("IP:%s ---> %s", in_ntoa(sip, iph->saddr), in_ntoa(dip, iph->daddr));
             break;
         }
         case IPPROTO_RAW:{
-            DEBUG("RAW:%s ---> %s", in_ntoa(sip, iph->saddr), in_ntoa(dip, iph->daddr));
+//            DEBUG("RAW:%s ---> %s", in_ntoa(sip, iph->saddr), in_ntoa(dip, iph->daddr));
             break;
         }
         case IPPROTO_GRE: {
-            DEBUG("GRE:%s ---> %s", in_ntoa(sip, iph->saddr), in_ntoa(dip, iph->daddr));
+//            DEBUG("GRE:%s ---> %s", in_ntoa(sip, iph->saddr), in_ntoa(dip, iph->daddr));
             break;
         }
         default: {  // 如果有其他可能情况，给出提示
-            DEBUG("Other Protocol=%d, %s ---> %s", iph->protocol, in_ntoa(sip, iph->saddr), in_ntoa(dip, iph->daddr));
+//            DEBUG("Other Protocol=%d, %s ---> %s", iph->protocol, in_ntoa(sip, iph->saddr), in_ntoa(dip, iph->daddr));
             break;
         }
     }
