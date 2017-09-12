@@ -27,7 +27,7 @@
  */
 static int __init init(void) {
     // 插入模块时
-    NOTICE("insert netfilter module to kernel!\n");
+    INFO("insert netfilter module to kernel!\n");
     // 先初始化netlink模块，优先保证与用户态通信
     if (createNetlink() != 0) {
         return 1;
@@ -41,7 +41,7 @@ static int __init init(void) {
  * 移除模块时调用的函数
  */
 static void __exit fini(void) {
-    NOTICE("remove netfilter module from kernel!\n");
+    INFO("remove netfilter module from kernel!\n");
     // 先释放netFilter钩子
     releaseNetFilter();
     // 释放netlink

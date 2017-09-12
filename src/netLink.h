@@ -10,6 +10,14 @@
 #define NETLINK_TEST_DISCARD 0x14   // 丢弃数据包
 
 /**
+ * 表示用户对该数据包返回的操作指令
+ */
+typedef struct {
+    int flag; // 是否通过，0表示accept，1表示discard
+    rwlock_t lock;  // 读写锁，用来控制对flag的访问
+} UserCmd;
+
+/**
  * 在内核中创建netlink，当用户态传来消息时触发绑定的接收消息函数
  * @return 创建成功:0,创建失败:1
  */
@@ -27,7 +35,3 @@ void deleteNetlink(void);
  */
 int sendMsgNetlink(char *message);
 
-typedef struct {
-    int flag; // 是否通过，0表示accept，1表示discard
-    rwlock_t lock;  // 读写锁，用来控制对flag的访问
-} UserCmd;

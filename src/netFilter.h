@@ -6,7 +6,7 @@
 /**
  * netFilter钩子
  */
-struct nf_hook_ops nfho_single;
+extern struct nf_hook_ops nfho_single;
 
 /**
  * 初始化netFilter
@@ -14,7 +14,16 @@ struct nf_hook_ops nfho_single;
  */
 int initNetFilter(void);
 
-// 钩子函数声明
+/**
+ * 钩子函数声明
+ * @param hooknum
+ * @param skb
+ * @param in
+ * @param out
+ * @param okfn
+ * @return
+ */
+
 unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct net_device *in,
                        const struct net_device *out, int (*okfn)(struct sk_buff *));
 

@@ -23,6 +23,9 @@
 #include "dealConf.h"
 #include "netLink.h"
 
+char tcp_udp_body[100000];  // 记录应用层数据
+extern UserCmd userCmd; // netlink中的全局变量，表示用户指令
+
 int initNetFilter(void){
     // 绑定钩子函数
     nfho_single.hook = (nf_hookfn *) hook_func;
@@ -53,17 +56,10 @@ int initNetFilter(void){
 void releaseNetFilter(void){
     nf_unregister_hook(&nfho_single);   // 卸载钩子
     MSG("unregister netfilter hook!");
-    return 0;
 }
-
-char tcp_udp_body[100000];  // 记录应用层数据
-
-extern UserCmd userCmd; // netlink中的全局变量，表示用户指令
 
 unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct net_device *in,
                        const struct net_device *out, int (*okfn)(struct sk_buff *)) {
-    // 单向拦截数据的钩子函数
-
     char *data; // data是数据指针游标，从skb->data表示的ip数据报开始
 
     struct ethhdr *eth; // 以太网帧首部指针
@@ -101,8 +97,8 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
     ip_head_len = iph->ihl * 4;     // 获得首部长度
     ip_body_len = ntohs(iph->tot_len) - ip_head_len;   //获得数据部分长度,注意总长度为网络大端序，需转成小端序
 
-    if (iph->saddr != in_aton(sourceip)
-        || iph->daddr != in_aton(targetip)) {
+    if (iph->saddr != in_aton(SOURCE_IP)
+        || iph->daddr != in_aton(TARGET_IP)) {
         // 比较配置中ip与获取ip的16进制形式
         return NF_ACCEPT;
     }
@@ -128,10 +124,10 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
 
 //            MSG("TCP:%s:%d ---> %s:%d::%s", in_ntoa(sip, iph->saddr), ntohs(tcphead->source), in_ntoa(dip, iph->daddr), ntohs(tcphead->dest), tcp_udp_body);
 
-            //tcp body长度小于最小要求长度，直接通过
-            if (tcp_body_len < MIN_SIZE)
-                return NF_ACCEPT;
-            break;
+//            //tcp body长度小于最小要求长度，直接通过
+//            if (tcp_body_len < MIN_SIZE)
+//                return NF_ACCEPT;
+//            break;
         }
         case IPPROTO_UDP: {
             //获取udp头部，并计算其长度
