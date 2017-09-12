@@ -9,11 +9,23 @@
 #define NETLINK_TEST_ACCPT 0x13  // 自定义的netlink客户端发送的指令，允许数据包通过
 #define NETLINK_TEST_DISCARD 0x14   // 丢弃数据包
 
+/**
+ * 在内核中创建netlink，当用户态传来消息时触发绑定的接收消息函数
+ * @return 创建成功:0,创建失败:1
+ */
 int createNetlink(void);
 
-int sendMsgNetlink(char *message);
+/**
+ * 在内核中删除创建的netlink
+ */
+void deleteNetlink(void);
 
-int deleteNetlink(void);
+/**
+ * 通过netlink往用户态发消息
+ * @param message 消息
+ * @return 发送成功:0,发送失败:1
+ */
+int sendMsgNetlink(char *message);
 
 typedef struct {
     int flag; // 是否通过，0表示accept，1表示discard

@@ -24,9 +24,61 @@ UserCmd userCmd;    // 用户指令
 struct netlink_kernel_cfg cfg;   // netlink内核配置参数
 #endif
 
-static void recvMsgNetlink(struct sk_buff *skb) {
-    // 当netlink上接收到消息时触发此函数
+int createNetlink(void) {
+    // 初始化读写锁
+    rwlock_init(&user_proc.lock);
 
+    // 对不同版本的内核调用不同的函数
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0)
+    // kernel 3.10
+    cfg.groups = 0; // 0表示单播，1表示多播
+    cfg.flags = 0;
+    cfg.input = recvMsgNetlink;    // 回调函数，当收到消息时触发
+    cfg.cb_mutex = NULL;
+
+    // 创建服务，init_net表示网络设备命名空间指针，NETLINK_TEST表示协议类型，cfg指向netlink的配置结构体
+    nl_sk = netlink_kernel_create(&init_net, NETLINK_TEST, &cfg);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 18)
+    // kernel 2.6.18
+    nl_sk = netlink_kernel_create(&init_net, NETLINK_TEST, 0, recvMsgNetlink, NULL, THIS_MODULE);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 16)
+    // kernel 2.6.16
+    nl_sk = netlink_kernel_create(NETLINK_TEST, 0, recvMsgNetlink, NULL, THIS_MODULE);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 10)
+    // kernel 2.6.10
+    nl_sk = netlink_kernel_create(NETLINK_TEST, 0, recvMsgNetlink, THIS_MODULE);
+#else
+    // 其他更低版本
+    nl_sk = netlink_kernel_create(NETLINK_TEST, recvMsgNetlink);
+#endif
+
+    if (!nl_sk) {
+        // netlink创建失败
+        ERROR("my_net_link: create netlink socket error.\n");
+        return 1;
+    }
+    NOTICE("my_net_link: create netlink socket success.\n");
+
+    write_lock_bh(&user_proc.lock);     // 获取写锁
+    // 初始时将客户端pid置0
+    user_proc.pid = 0;
+    write_unlock_bh(&user_proc.lock);   // 释放写锁
+    return 0;
+}
+
+void deleteNetlink(void) {
+    if (nl_sk) {
+        netlink_kernel_release(nl_sk);
+    }
+    NOTICE("my_net_link: netlink socket released\n");
+    return 0;
+}
+
+/**
+ * 内核态netlink收到用户态发来的消息时触发此回调函数
+ * @param skb
+ */
+static void recvMsgNetlink(struct sk_buff *skb) {
     struct nlmsghdr *nlh;   // 指向netlink消息首部的指针
 
     DEBUG("recvMsgNetlink is triggerd\n");
@@ -77,7 +129,6 @@ static void recvMsgNetlink(struct sk_buff *skb) {
 //        INFO("netlink message received:%s\n", str);
     }
 }
-
 
 int sendMsgNetlink(char *message) {
     // 通过netlink向进程号为pid的用户态进程发送消息message
@@ -148,61 +199,4 @@ int sendMsgNetlink(char *message) {
 #endif
 
     return ret;
-}
-
-int createNetlink(void) {
-    // 在内核中创建netlink，当用户态传来消息时触发绑定的接收消息函数
-
-    // 初始化读写锁
-    rwlock_init(&user_proc.lock);
-
-    // 对不同版本的内核调用不同的函数
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0)
-    // kernel 3.10
-    cfg.groups = 0; // 0表示单播，1表示多播
-    cfg.flags = 0;
-    cfg.input = recvMsgNetlink;    // 回调函数，当收到消息时触发
-    cfg.cb_mutex = NULL;
-
-    // 创建服务，init_net表示网络设备命名空间指针，NETLINK_TEST表示协议类型，cfg指向netlink的配置结构体
-    nl_sk = netlink_kernel_create(&init_net, NETLINK_TEST, &cfg);
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 18)
-    // kernel 2.6.18
-    nl_sk = netlink_kernel_create(&init_net, NETLINK_TEST, 0, recvMsgNetlink, NULL, THIS_MODULE);
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 16)
-    // kernel 2.6.16
-    nl_sk = netlink_kernel_create(NETLINK_TEST, 0, recvMsgNetlink, NULL, THIS_MODULE);
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 10)
-    // kernel 2.6.10
-    nl_sk = netlink_kernel_create(NETLINK_TEST, 0, recvMsgNetlink, THIS_MODULE);
-#else
-    // 其他更低版本
-    nl_sk = netlink_kernel_create(NETLINK_TEST, recvMsgNetlink);
-#endif
-
-    if (!nl_sk) {
-        // netlink创建失败
-        ERROR("my_net_link: create netlink socket error.\n");
-        return -1;
-    }
-    INFO("my_net_link: create netlink socket ok.\n");
-
-    write_lock_bh(&user_proc.lock);     // 获取写锁
-    // 初始时将客户端pid置0
-    user_proc.pid = 0;
-    write_unlock_bh(&user_proc.lock);   // 释放写锁
-
-    return 0;
-}
-
-int deleteNetlink(void) {
-    // 释放netlink
-
-    if (nl_sk) {
-        netlink_kernel_release(nl_sk);
-    }
-
-    INFO("my_net_link: netlink socket released\n");
-
-    return 0;
 }

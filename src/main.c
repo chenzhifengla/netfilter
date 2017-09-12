@@ -17,49 +17,38 @@
 #include<linux/string.h>
 
 #include "log.h"
-#include "dealConf.h"
 #include "netFilter.h"
 #include "netLink.h"
 
-MODULE_LICENSE("GPL");
+//MODULE_LICENSE("GPL");
 
-static int __init init(void){
+/**
+ * 插入模块时调用的函数
+ */
+static int __init init(void) {
     // 插入模块时
-
-    char *readFileData;
-
-    INFO("insert netfilter module to kernel!\n");
-
-    createNetlink();    // 初始化netlink模块
-
-    // 从配置文件中读取配置
-    readFileData = readConf();
-    if (!readFileData) {
-        WARNING("cannot readConf!\n");
+    NOTICE("insert netfilter module to kernel!\n");
+    // 先初始化netlink模块，优先保证与用户态通信
+    if (createNetlink() != 0) {
         return 1;
-    } else {
-        DEBUG("readConf: %s\n", readFileData);
     }
-
-    // 解析配置
-    parseConf(readFileData);
-
     // 初始化netfilter
     initNetFilter();
-
     return 0;
 }
 
-static void __exit fini(void){
-    // 移除模块时
-
-    INFO("remove netfilter module from kernel!\n");
-
-    deleteNetlink();    // 释放netlink
-
-    releaseNetFilter(); //释放netfilter钩子
-
+/**
+ * 移除模块时调用的函数
+ */
+static void __exit fini(void) {
+    NOTICE("remove netfilter module from kernel!\n");
+    // 先释放netFilter钩子
+    releaseNetFilter();
+    // 释放netlink
+    deleteNetlink();
 }
 
-module_init(init);  // 模块入口，插入模块后调用绑定函数
-module_exit(fini);  // 模块出口，插入模块后调用绑定函数
+// 模块入口，插入模块后调用绑定函数
+module_init(init);
+// 模块出口，插入模块后调用绑定函数
+module_exit(fini);

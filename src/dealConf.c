@@ -25,37 +25,6 @@ char targetip[CONTENTMAXLEN];
 
 #define MINAL_SIZE 97   //数据包的最小长度
 
-// 规范数据包示例
-// <?xml version='1.0' encoding='gb2312' ?><note id='13'><title>hello</title><message>world</message></note>
-
-char head[50] = "<?xml version='1.0' encoding='gb2312' ?>";     // 长度为40
-char data[1000];
-
-char *readConf(void) {
-    //从配置文件中读取配置
-
-    struct file *fp;
-    mm_segment_t fs;
-    loff_t pos;
-
-    // 打开配置文件
-    fp = filp_open("../conf/netfilter.conf", O_RDONLY | O_CREAT, 0644);
-    if (IS_ERR(fp)) {
-        WARNING("open netfilter.conf failed!");
-        return NULL;
-    }
-
-    fs = get_fs();
-    set_fs(KERNEL_DS);  // 确保内核能进行系统调用，使访问文件
-    pos = 0;
-    vfs_read(fp, data, sizeof(data), &pos); // 读取配置文件
-
-    filp_close(fp, NULL);
-    set_fs(fs);
-
-    return data;
-}
-
 void extract(char* dest, char* content, char* data, int minlen, int maxlen){
     // 从数据包data中提取content形式的数据保存在dest中，要求数据长度不小于minlen
 
