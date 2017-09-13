@@ -2,8 +2,8 @@
 // Created by yingzi on 2017/9/12.
 //
 
-#ifndef NETFILTER_CONF_H
-#define NETFILTER_CONF_H
+#ifndef NET_FILTER_CONF_H
+#define NET_FILTER_CONF_H
 
 // 0表示桥接，1表示NAT
 #define BRIDGE 0
@@ -19,6 +19,8 @@
 #define TAG_TAIL "</xml>"
 // 内核等待时间(ms)
 #define KERNEL_WAIT_MILISEC 500
+// 用户态与内核态通信的最大消息长度
+#define MAX_MSG_LEN 100000
 
 
-#endif //NETFILTER_CONF_H
+#endif //NET_FILTER_CONF_H
