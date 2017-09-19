@@ -29,7 +29,7 @@ static void quit(int signum){
     memset(&message, 0, sizeof(message));
     message.nlmsg_len = NLMSG_LENGTH(0);    // netlink消息的总长度,仅需提供发送数据的长度，由该宏自动计算对齐后的总长度
     message.nlmsg_flags = 0;   // 用户应用内部定义消息的类型，大部分情况下设置为0
-    message.nlmsg_type = NETLINK_TEST_DISCONNECT;   // 设置消息标志，此处设置为断开连接时标志
+    message.nlmsg_type = NET_LINK_DISCONNECT;   // 设置消息标志，此处设置为断开连接时标志
     message.nlmsg_pid = getpid();
 
     // 向内核发消息，由nlmsg_type表明，应用程序即将关闭
@@ -44,7 +44,7 @@ static void quit(int signum){
 int main(int argc, char *argv[]) {
 
     // 创建客户端原始套接字，协议为NETLINK_TEST
-    if ((sock_fd = socket(PF_NETLINK, SOCK_RAW, NETLINK_TEST)) < 0) {
+    if ((sock_fd = socket(PF_NETLINK, SOCK_RAW, NET_LINK_PROTOCOL)) < 0) {
         printf("can't create netlink socket!\n");
         return -1;
     }
@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
     memset(&message, 0, sizeof(message));   // 清空该消息
     message.nlmsg_len = NLMSG_LENGTH(0);    // netlink消息的总长度,仅需提供发送数据的长度，由该宏自动计算对齐后的总长度
     message.nlmsg_flags = 0;   // 用户应用内部定义消息的类型，大部分情况下设置为0
-    message.nlmsg_type = NETLINK_TEST_CONNECT;   // 设置消息标志，这里设置为连接时标志
+    message.nlmsg_type = NET_LINK_CONNECT;   // 设置消息标志，这里设置为连接时标志
     message.nlmsg_pid = getpid();   // 设置发送者的PID
 
     // 发送netlink消息到内核
