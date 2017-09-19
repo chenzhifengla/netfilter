@@ -37,6 +37,60 @@ UserCmd userCmd;
 static struct netlink_kernel_cfg cfg;
 #endif
 
+/**
+ * 内核态netLink收到用户态发来的消息时触发此回调函数
+ * 函数获取用户指令并置userCmd相应标识位
+ * @param skb
+ */
+static void recvMsgNetLink(struct sk_buff *skb) {
+    struct nlmsghdr *nlh;   // 指向netLink消息首部的指针
+
+    DEBUG("recvMsgNetLink is triggered\n");
+
+    if (skb->len >= NLMSG_SPACE(0)) {
+        nlh = nlmsg_hdr(skb);   // 获取netLink消息首部指针
+        DEBUG("nlh->nlmsg_len = %d, sizeof(struct nlmsghdr)=%lu, skb->len=%d, nlh->nlmsg_len=%d", nlh->nlmsg_len, sizeof(struct nlmsghdr), skb->len, nlh->nlmsg_len);
+        if ((nlh->nlmsg_len >= sizeof(struct nlmsghdr)) && (skb->len >= nlh->nlmsg_len)){
+            // 如果首部完整
+            if (nlh->nlmsg_type == NET_LINK_CONNECT){
+                // 如果消息类型为请求连接
+                INFO("netLink client connect");
+                INFO("netLink client pid is %d", nlh->nlmsg_pid);
+                write_lock_bh(&userInfo.lock);     // 获取写锁
+                userInfo.pid = nlh->nlmsg_pid;
+                write_unlock_bh(&userInfo.lock);   // 释放写锁
+                MSG("you have connected to the kernel!");  // 向客户端发送回复消息
+            }
+            else if (nlh->nlmsg_type == NET_LINK_DISCONNECT){
+                // 如果消息类型为释放连接
+                INFO("netLink client disconnect");
+                MSG("you have disconnected to the kernel!");  // 向客户端发送回复消息
+                write_lock_bh(&userInfo.lock);     // 获取写锁
+                user_proc.pid = 0;  // 将pid置0
+                write_unlock_bh(&userInfo.lock);   // 释放写锁
+            }
+            else if (nlh->nlmsg_type == NET_LINK_ACCEPT) {
+                INFO("netLink accept");
+            }
+            else if (nlh->nlmsg_type == NET_LINK_DISCARD) {
+                INFO("netLink discard");
+                write_lock_bh(&userCmd.lock);
+                userCmd.flag = 1;
+                write_unlock_bh(&userCmd.lock);
+            }
+            else {
+                // 如果消息类型为其他指令,有待操作
+                MSG("cannot recognize command!");
+            }
+        }
+        else{
+            INFO("netLink message too short");
+        }
+//        memcpy(str, NLMSG_DATA(nlh), sizeof(str));  // 获取netLink消息主体
+//        INFO("netLink message received:%s\n", str);
+    }
+}
+
 int createNetLink(void) {
     // 初始化读写锁
     DEBUG("init read/write lock\n");
@@ -155,60 +209,6 @@ int sendMsgNetLink(char *message, int len) {
         return 1;
     }
     else return 0;
-}
-
-/**
- * 内核态netLink收到用户态发来的消息时触发此回调函数
- * 函数获取用户指令并置userCmd相应标识位
- * @param skb
- */
-static void recvMsgNetLink(struct sk_buff *skb) {
-    struct nlmsghdr *nlh;   // 指向netLink消息首部的指针
-
-    DEBUG("recvMsgNetLink is triggered\n");
-
-    if (skb->len >= NLMSG_SPACE(0)) {
-        nlh = nlmsg_hdr(skb);   // 获取netLink消息首部指针
-        DEBUG("nlh->nlmsg_len = %d, sizeof(struct nlmsghdr)=%lu, skb->len=%d, nlh->nlmsg_len=%d", nlh->nlmsg_len, sizeof(struct nlmsghdr), skb->len, nlh->nlmsg_len);
-        if ((nlh->nlmsg_len >= sizeof(struct nlmsghdr)) && (skb->len >= nlh->nlmsg_len)){
-            // 如果首部完整
-            if (nlh->nlmsg_type == NET_LINK_CONNECT){
-                // 如果消息类型为请求连接
-                INFO("netLink client connect");
-                INFO("netLink client pid is %d", nlh->nlmsg_pid);
-                write_lock_bh(&userInfo.lock);     // 获取写锁
-                userInfo.pid = nlh->nlmsg_pid;
-                write_unlock_bh(&userInfo.lock);   // 释放写锁
-                MSG("you have connected to the kernel!");  // 向客户端发送回复消息
-            }
-            else if (nlh->nlmsg_type == NET_LINK_DISCONNECT){
-                // 如果消息类型为释放连接
-                INFO("netLink client disconnect");
-                MSG("you have disconnected to the kernel!");  // 向客户端发送回复消息
-                write_lock_bh(&user_proc.lock);     // 获取写锁
-                user_proc.pid = 0;  // 将pid置0
-                write_unlock_bh(&user_proc.lock);   // 释放写锁
-            }
-            else if (nlh->nlmsg_type == NET_LINK_ACCEPT) {
-                INFO("netLink accept");
-            }
-            else if (nlh->nlmsg_type == NET_LINK_DISCARD) {
-                INFO("netLink discard");
-                write_lock_bh(&userCmd.lock);
-                userCmd.flag = 1;
-                write_unlock_bh(&userCmd.lock);
-            }
-            else {
-                // 如果消息类型为其他指令,有待操作
-                MSG("cannot recognize command!");
-            }
-        }
-        else{
-            INFO("netLink message too short");
-        }
-//        memcpy(str, NLMSG_DATA(nlh), sizeof(str));  // 获取netLink消息主体
-//        INFO("netLink message received:%s\n", str);
-    }
 }
 
 
