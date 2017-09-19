@@ -8,7 +8,6 @@
 
 #include "log.h"
 #include "dealConf.h"
-#include "netLink.h"
 
 int isMatch(char* data, int len) {
     // TODO

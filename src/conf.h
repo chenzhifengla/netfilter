@@ -21,6 +21,10 @@
 #define KERNEL_WAIT_MILISEC 500
 // 用户态与内核态通信的最大消息长度
 #define MAX_MSG_LEN 100000
+// 内核对客户端回复的轮询时间间隔
+#define POLL_MILISEC 50
+// 内核对客户端回复的轮询次数
+#define POLL_TIMES 10
 
 
 #endif //NET_FILTER_CONF_H

@@ -57,7 +57,7 @@ int initNetFilter(void){
 }
 
 void releaseNetFilter(void){
-    DEBUG("unregister netFilter hook!");
+    DEBUG("unRegister netFilter hook!");
     nf_unregister_hook(&nfho_single);   // 卸载钩子
 }
 
@@ -80,6 +80,7 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
     int udp_body_len;   // 数据长度
 
     int userCmdAns = 0; // 用户指令标志
+    int pollTimes = 0;  // 轮询次数
 
     eth = eth_hdr(skb); // 获得以太网帧首部指针
     iph = ip_hdr(skb);  // 获得ip数据报首部指针，或者iph = (struct iphdr *) data;
@@ -153,15 +154,26 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
             userCmd.flag = 0;
             write_unlock_bh(&userCmd.lock);
 
-            MSG(data, udp_body_len);
-            // 将消息发往用户态后sleep 500ms
-            mdelay(KERNEL_WAIT_MILISEC);
+            MSG_LEN(data, udp_body_len);
 
-            // 尝试读取结果
+            // 消息发出后每50ms轮询一次，轮询10次
             userCmdAns = 0;
-            read_lock_bh(&userCmd.lock);
-            userCmdAns = userCmd.flag;
-            read_unlock_bh(&userCmd.lock);
+            for (pollTimes = 0; pollTimes < POLL_TIMES; ++pollTimes) {
+                mdelay(POLL_MILISEC);
+                read_lock_bh(&userCmd.lock);
+                userCmdAns = userCmd.flag;
+                read_unlock_bh(&userCmd.lock);
+                if (userCmdAns == 1) break;
+            }
+
+//            // 将消息发往用户态后sleep 500ms
+//            mdelay(KERNEL_WAIT_MILISEC);
+//
+//            // 尝试读取结果
+//            userCmdAns = 0;
+//            read_lock_bh(&userCmd.lock);
+//            userCmdAns = userCmd.flag;
+//            read_unlock_bh(&userCmd.lock);
 
             if (userCmdAns == 1) return NF_DROP;
 

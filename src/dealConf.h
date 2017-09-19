@@ -2,6 +2,9 @@
  * dealConf主要用来提供配置读取、数据包合法检查与提取、ip格式转换等功能
  */
 
+#ifndef NET_FILTER_DEAL_CONF_H
+#define NET_FILTER_DEAL_CONF_H
+
 /**
  * 判断数据包是否满足预订格式
  * @param data 数据包指针
@@ -17,3 +20,5 @@ int isMatch(char* data, int len);
  * @return 10进制ip字符串
  */
 char *in_ntoa(char *sip, __u32 in);
+
+#endif //NET_FILTER_DEAL_CONF_H
