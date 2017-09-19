@@ -66,7 +66,7 @@ static void recvMsgNetLink(struct sk_buff *skb) {
                 INFO("netLink client disconnect");
                 MSG("you have disconnected to the kernel!");  // 向客户端发送回复消息
                 write_lock_bh(&userInfo.lock);     // 获取写锁
-                user_proc.pid = 0;  // 将pid置0
+                userInfo.pid = 0;  // 将pid置0
                 write_unlock_bh(&userInfo.lock);   // 释放写锁
             }
             else if (nlh->nlmsg_type == NET_LINK_ACCEPT) {
@@ -100,7 +100,7 @@ int createNetLink(void) {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0)
     cfg.groups = 0; // 0表示单播，1表示多播
     cfg.flags = 0;
-    cfg.input = recvMsgNetlink;    // 回调函数，当收到消息时触发
+    cfg.input = recvMsgNetLink;    // 回调函数，当收到消息时触发
     cfg.cb_mutex = NULL;
 
     // 创建服务，init_net表示网络设备命名空间指针，NET_LINK_TEST表示协议类型，cfg指向netLink的配置结构体
@@ -185,9 +185,9 @@ int sendMsgNetLink(char *message, int len) {
     nlh->nlmsg_len = len + sizeof(struct nlmsghdr);
 
     // 设置控制字段
-    //NET_LINK_CB(skb).pid = 0;  // 消息发送者为内核，所以pid为0
-    //NET_LINK_CB(skb).dst_pid = pid;  // 消息接收者的pid
-    NET_LINK_CB(skb).dst_group = 0;    // 目标为进程时，设置为0
+    //NETLINK_CB(skb).pid = 0;  // 消息发送者为内核，所以pid为0
+    //NETLINK_CB(skb).dst_pid = pid;  // 消息接收者的pid
+    NETLINK_CB(skb).dst_group = 0;    // 目标为进程时，设置为0
 
     // 向客户端发消息
     read_lock_bh(&userInfo.lock);  // 获取读锁
