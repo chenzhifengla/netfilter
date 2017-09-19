@@ -25,6 +25,11 @@
 
 extern UserCmd userCmd; // netLink中的全局变量，表示用户指令
 
+/**
+ * netFilter钩子
+ */
+static struct nf_hook_ops nfho_single;
+
 int initNetFilter(void){
     // 绑定钩子函数
     DEBUG("bind netFilter hook func\n");

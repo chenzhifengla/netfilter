@@ -8,11 +8,6 @@
 #include<linux/netfilter.h>
 
 /**
- * netFilter钩子
- */
-extern struct nf_hook_ops nfho_single;
-
-/**
  * 初始化netFilter
  * @return 初始化成功:0,初始化失败:1
  */
