@@ -116,7 +116,7 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
             break;
         case IPPROTO_TCP: {
             //获取tcp头，并计算其长度
-//            tcphead = (struct tcphdr *) data;
+//            tcp_head = (struct tcphdr *) data;
 //            tcp_head_len = tcphead->doff * 4;
 //            tcp_body_len = ip_body_len - tcp_head_len;
 //
@@ -128,9 +128,9 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
         }
         case IPPROTO_UDP: {
             //获取udp头部，并计算其长度
-            udphead = (struct udphdr *) data;
+            udp_head = (struct udphdr *) data;
             udp_head_len = sizeof(struct udphdr);
-            udp_body_len = ntohs(udphead->len) - udp_head_len;
+            udp_body_len = ntohs(udp_head->len) - udp_head_len;
 
             data += udp_head_len;   // 将data指向UDP数据部分
 //            strncpy(tcp_udp_body, data, udp_body_len);

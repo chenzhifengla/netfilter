@@ -28,7 +28,7 @@ static int __init init(void) {
     INFO("insert netFilter module to kernel!\n");
 
     // 先初始化netLink模块，优先保证与用户态通信
-    if (createNetlink() != 0) {
+    if (createNetLink() != 0) {
         ERROR("create netLink failed!\n");
         return 1;
     }
@@ -49,7 +49,7 @@ static void __exit fini(void) {
     // 先释放netFilter钩子
     releaseNetFilter();
     // 释放netLink
-    deleteNetlink();
+    deleteNetLink();
 }
 
 // 模块入口，插入模块后调用绑定函数
