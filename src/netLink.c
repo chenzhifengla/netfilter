@@ -40,7 +40,7 @@ static struct netlink_kernel_cfg cfg;
 int createNetLink(void) {
     // 初始化读写锁
     DEBUG("init read/write lock\n");
-    rwlock_init(&user_proc.lock);
+    rwlock_init(&userInfo.lock);
 
     // 对不同版本的内核调用不同的函数
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0)
@@ -50,16 +50,16 @@ int createNetLink(void) {
     cfg.cb_mutex = NULL;
 
     // 创建服务，init_net表示网络设备命名空间指针，NET_LINK_TEST表示协议类型，cfg指向netLink的配置结构体
-    nl_sk = netlink_kernel_create(&init_net, NET_LINK_TEST, &cfg);
+    nl_sk = netlink_kernel_create(&init_net, NET_LINK_PROTOCOL, &cfg);
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 18)
-    nl_sk = netlink_kernel_create(&init_net, NET_LINK_TEST, 0, recvMsgNetlink, NULL, THIS_MODULE);
+    nl_sk = netlink_kernel_create(&init_net, NET_LINK_PROTOCOL, 0, recvMsgNetlink, NULL, THIS_MODULE);
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 16)
-    nl_sk = netlink_kernel_create(NET_LINK_TEST, 0, recvMsgNetlink, NULL, THIS_MODULE);
+    nl_sk = netlink_kernel_create(NET_LINK_PROTOCOL, 0, recvMsgNetlink, NULL, THIS_MODULE);
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 10)
-    nl_sk = netlink_kernel_create(NET_LINK_TEST, 0, recvMsgNetlink, THIS_MODULE);
+    nl_sk = netlink_kernel_create(NET_LINK_PROTOCOL, 0, recvMsgNetlink, THIS_MODULE);
 #else
     // 其他更低版本
-    nl_sk = netlink_kernel_create(NET_LINK_TEST, recvMsgNetlink);
+    nl_sk = netlink_kernel_create(NET_LINK_PROTOCOL, recvMsgNetlink);
 #endif
 
     if (!nl_sk) {
@@ -176,9 +176,9 @@ static void recvMsgNetLink(struct sk_buff *skb) {
                 // 如果消息类型为请求连接
                 INFO("netLink client connect");
                 INFO("netLink client pid is %d", nlh->nlmsg_pid);
-                write_lock_bh(&user_proc.lock);     // 获取写锁
+                write_lock_bh(&userInfo.lock);     // 获取写锁
                 userInfo.pid = nlh->nlmsg_pid;
-                write_unlock_bh(&user_proc.lock);   // 释放写锁
+                write_unlock_bh(&userInfo.lock);   // 释放写锁
                 MSG("you have connected to the kernel!");  // 向客户端发送回复消息
             }
             else if (nlh->nlmsg_type == NET_LINK_DISCONNECT){
@@ -189,10 +189,10 @@ static void recvMsgNetLink(struct sk_buff *skb) {
                 user_proc.pid = 0;  // 将pid置0
                 write_unlock_bh(&user_proc.lock);   // 释放写锁
             }
-            else if (nlh->nlmsg_type == NET_LINK_ACCPT) {
+            else if (nlh->nlmsg_type == NET_LINK_ACCEPT) {
                 INFO("netLink accept");
             }
-            else if (nlh->nlmsg_type == NET_LINK_TEST_DISCARD) {
+            else if (nlh->nlmsg_type == NET_LINK_DISCARD) {
                 INFO("netLink discard");
                 write_lock_bh(&userCmd.lock);
                 userCmd.flag = 1;
