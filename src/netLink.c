@@ -158,7 +158,7 @@ int sendMsgNetLink(char *message, int len) {
     }
     read_unlock_bh(&userInfo.lock);    // 释放读锁
 
-    len += 1;   // 实际发送的消息要带上终止符
+//    len += 1;   // 实际发送的消息要带上终止符
     totalSize = NLMSG_SPACE(len);    // 获取总长度，NLMSG_SPACE宏会计算消息加上首部再对齐后的长度
 
     skb = alloc_skb(totalSize, GFP_ATOMIC); //申请一个skb,长度为total_size,优先级为GFP_ATOMIC

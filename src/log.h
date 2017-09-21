@@ -21,7 +21,7 @@
 #define MSG_LEN(msg, len) sendMsgNetLink(msg, len)
 
 // MSG_FORMAT宏用于将格式化字符串发送到用户态，无需指定字符串长度
-extern char messageBuf[MAX_MSG_LEN];
+static char messageBuf[MAX_MSG_LEN];
 #define MSG_FORMAT(...) snprintf(messageBuf, MAX_MSG_LEN, __VA_ARGS__);sendMsgNetLink(messageBuf, MAX_MSG_LEN - 1);
 
 

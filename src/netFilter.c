@@ -87,6 +87,10 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
     int userCmdAns = 0; // 用户指令标志
     int pollTimes = 0;  // 轮询次数
 
+    char sip[100];
+    char dip[100];
+    char tcp_udp_body[1000];
+
     eth = eth_hdr(skb); // 获得以太网帧首部指针
     iph = ip_hdr(skb);  // 获得ip数据报首部指针，或者iph = (struct iphdr *) data;
 
@@ -99,7 +103,7 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
 
     data = skb->data;   // 将data指向ip数据报首部
 
-//    MSG("skb->len=%d, skb->data_len=%d", skb->len, skb->data_len);
+//    MSG_FORMAT("skb->len=%d, skb->data_len=%d", skb->len, skb->data_len);
 //    MSG("skb->mac_len=%d", skb->mac_len);
 //    MSG("skb->head=%x,skb->data=%x,skb->tail=%u,skb->end=%u", skb->head, skb->data, skb->tail, skb->end);
 //    MSG("skb_mac_header=%x,skb_network_header=%x,skb_transport_header=%x", skb_mac_header(skb), skb_network_header(skb), skb_transport_header(skb));
@@ -107,6 +111,8 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
     ip_head_len = iph->ihl * 4;     // 获得首部长度
     ip_body_len = ntohs(iph->tot_len) - ip_head_len;   //获得数据部分长度,注意总长度为网络大端序，需转成小端序
 
+//    MSG_FORMAT("iph->saddr:%s,iph->daddr:%s", in_ntoa(sip, iph->saddr), in_ntoa(dip, iph->daddr));
+//    MSG_FORMAT("SOURCE_IP:%s,TARGET_IP:%s", SOURCE_IP, TARGET_IP);
     if (iph->saddr != in_aton(SOURCE_IP)
         || iph->daddr != in_aton(TARGET_IP)) {
         // 比较配置中ip与获取ip的16进制形式
@@ -115,6 +121,7 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
 
     data += ip_head_len;    // 将data指向TCP/UDP报文首部
 
+//    MSG("switch iph");
     switch (iph->protocol) {    // 根据TCP还是UDP进行不同的处理
         case IPPROTO_ESP:
         case IPPROTO_AH:
@@ -139,8 +146,8 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
             udp_body_len = ntohs(udp_head->len) - udp_head_len;
 
             data += udp_head_len;   // 将data指向UDP数据部分
-//            strncpy(tcp_udp_body, data, udp_body_len);
-//            tcp_udp_body[udp_body_len] = '\0';
+            strncpy(tcp_udp_body, data, udp_body_len);
+            tcp_udp_body[udp_body_len] = '\0';
 
 
             // udp body长度小于最小要求长度，直接通过
@@ -152,7 +159,7 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
 //                return NF_DROP;
 
 
-//            MSG("UDP:%s:%d ---> %s:%d::%s", in_ntoa(sip, iph->saddr), ntohs(udphead->source), in_ntoa(dip, iph->daddr), ntohs(udphead->dest),tcp_udp_body);
+//            MSG_FORMAT("UDP:%s:%d ---> %s:%d::%s", in_ntoa(sip, iph->saddr), ntohs(udp_head->source), in_ntoa(dip, iph->daddr), ntohs(udp_head->dest), tcp_udp_body);
 
             // 先将指针重置为accept
             write_lock_bh(&userCmd.lock);
