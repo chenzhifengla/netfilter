@@ -22,12 +22,17 @@
 
 MODULE_LICENSE("GPL");
 
+struct completion msgCompletion;
+
 /**
  * 插入模块时调用的函数
  */
 static int __init init(void) {
     // 插入模块时
     INFO("insert netFilter module to kernel!\n");
+
+    // 初始化完成量
+    init_completion(&msgCompletion);
 
     // 先初始化netLink模块，优先保证与用户态通信
     if (createNetLink() != 0) {
@@ -40,6 +45,7 @@ static int __init init(void) {
 
     // 初始化netFilter
     initNetFilter();
+
     return 0;
 }
 

@@ -28,7 +28,8 @@ extern UserCmd userCmd; // netLink中的全局变量，表示用户指令
 /**
  * 完成量，内核态发数据后阻塞等netlink收消息唤醒
  */
-DECLARE_COMPLETION(msgCompletion);
+//DECLARE_COMPLETION(msgCompletion);
+extern struct completion msgCompletion;
 
 /**
  * netFilter钩子
@@ -197,7 +198,7 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
             // 发送消息
             MSG_LEN(data, udp_body_len);
             // 消息发出后使用完成量进行超时阻塞，最多超时100ms
-            wait_for_completion_timeout(&my_completion, 100);
+            wait_for_completion_timeout(&msgCompletion, 100);
 
             // 直接读userCmd
             if (userCmd.flag == 1) return NF_DROP;

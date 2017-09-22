@@ -30,7 +30,7 @@ static struct {
  */
 UserCmd userCmd;
 
-extern DECLARE_COMPLETION(msgCompletion);
+extern struct completion msgCompletion;
 
 /**
  * KERNEL版本>=3.10时，需要一个netLink内核配置参数
