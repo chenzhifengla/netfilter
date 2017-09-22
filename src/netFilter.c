@@ -26,6 +26,11 @@
 extern UserCmd userCmd; // netLink中的全局变量，表示用户指令
 
 /**
+ * 完成量，内核态发数据后阻塞等netlink收消息唤醒
+ */
+DECLARE_COMPLETION(msgCompletion);
+
+/**
  * netFilter钩子
  */
 static struct nf_hook_ops nfho_single;
@@ -87,9 +92,9 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
     int userCmdAns = 0; // 用户指令标志
     int pollTimes = 0;  // 轮询次数
 
-    char sip[100];
-    char dip[100];
-    char tcp_udp_body[1000];
+//    char sip[100];
+//    char dip[100];
+//    char tcp_udp_body[1000];
 
     eth = eth_hdr(skb); // 获得以太网帧首部指针
     iph = ip_hdr(skb);  // 获得ip数据报首部指针，或者iph = (struct iphdr *) data;
@@ -146,8 +151,8 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
             udp_body_len = ntohs(udp_head->len) - udp_head_len;
 
             data += udp_head_len;   // 将data指向UDP数据部分
-            strncpy(tcp_udp_body, data, udp_body_len);
-            tcp_udp_body[udp_body_len] = '\0';
+//            strncpy(tcp_udp_body, data, udp_body_len);
+//            tcp_udp_body[udp_body_len] = '\0';
 
 
             // udp body长度小于最小要求长度，直接通过
@@ -161,22 +166,22 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
 
 //            MSG_FORMAT("UDP:%s:%d ---> %s:%d::%s", in_ntoa(sip, iph->saddr), ntohs(udp_head->source), in_ntoa(dip, iph->daddr), ntohs(udp_head->dest), tcp_udp_body);
 
-            // 先将指针重置为accept
-            write_lock_bh(&userCmd.lock);
-            userCmd.flag = 0;
-            write_unlock_bh(&userCmd.lock);
-
-            MSG_LEN(data, udp_body_len);
-
-            // 消息发出后每50ms轮询一次，轮询10次
-            userCmdAns = 0;
-            for (pollTimes = 0; pollTimes < POLL_TIMES; ++pollTimes) {
-                mdelay(POLL_MILISEC);
-                read_lock_bh(&userCmd.lock);
-                userCmdAns = userCmd.flag;
-                read_unlock_bh(&userCmd.lock);
-                if (userCmdAns == 1) break;
-            }
+//            // 先将指针重置为accept
+//            write_lock_bh(&userCmd.lock);
+//            userCmd.flag = 0;
+//            write_unlock_bh(&userCmd.lock);
+//
+//            MSG_LEN(data, udp_body_len);
+//
+//            // 消息发出后每50ms轮询一次，轮询10次
+//            userCmdAns = 0;
+//            for (pollTimes = 0; pollTimes < POLL_TIMES; ++pollTimes) {
+//                mdelay(POLL_MILISEC);
+//                read_lock_bh(&userCmd.lock);
+//                userCmdAns = userCmd.flag;
+//                read_unlock_bh(&userCmd.lock);
+//                if (userCmdAns == 1) break;
+//            }
 
 //            // 将消息发往用户态后sleep 500ms
 //            mdelay(KERNEL_WAIT_MILISEC);
@@ -187,7 +192,17 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
 //            userCmdAns = userCmd.flag;
 //            read_unlock_bh(&userCmd.lock);
 
-            if (userCmdAns == 1) return NF_DROP;
+            // 先将标记清空
+            userCmd.flag = 0;
+            // 发送消息
+            MSG_LEN(data, udp_body_len);
+            // 消息发出后使用完成量进行超时阻塞，最多超时100ms
+            wait_for_completion_timeout(&my_completion, 100);
+
+            // 直接读userCmd
+            if (userCmd.flag == 1) return NF_DROP;
+
+//            if (userCmdAns == 1) return NF_DROP;
 
             break;
         }

@@ -20,6 +20,8 @@
 #include "netFilter.h"
 #include "netLink.h"
 
+MODULE_LICENSE("GPL");
+
 /**
  * 插入模块时调用的函数
  */

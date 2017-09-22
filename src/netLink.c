@@ -30,6 +30,8 @@ static struct {
  */
 UserCmd userCmd;
 
+extern DECLARE_COMPLETION(msgCompletion);
+
 /**
  * KERNEL版本>=3.10时，需要一个netLink内核配置参数
  */
@@ -74,9 +76,10 @@ static void recvMsgNetLink(struct sk_buff *skb) {
             }
             else if (nlh->nlmsg_type == NET_LINK_DISCARD) {
                 INFO("netLink discard");
-                write_lock_bh(&userCmd.lock);
+//                write_lock_bh(&userCmd.lock);
+//                userCmd.flag = 1;
+//                write_unlock_bh(&userCmd.lock);
                 userCmd.flag = 1;
-                write_unlock_bh(&userCmd.lock);
             }
             else {
                 // 如果消息类型为其他指令,有待操作
@@ -88,6 +91,8 @@ static void recvMsgNetLink(struct sk_buff *skb) {
         }
 //        memcpy(str, NLMSG_DATA(nlh), sizeof(str));  // 获取netLink消息主体
 //        INFO("netLink message received:%s\n", str);
+        // 唤醒阻塞的内核线程
+        complete(&msgCompletion);
     }
 }
 
