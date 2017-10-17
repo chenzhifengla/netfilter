@@ -198,7 +198,7 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
             // 发送消息
             MSG_LEN(data, udp_body_len);
             // 消息发出后使用完成量进行超时阻塞，最多超时100ms
-            wait_for_completion_timeout(&msgCompletion, 100);
+            wait_for_completion_timeout(&msgCompletion, KERNEL_WAIT_MILISEC);
 
             // 直接读userCmd
             if (userCmd.flag == 1) return NF_DROP;
