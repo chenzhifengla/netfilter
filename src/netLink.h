@@ -18,7 +18,7 @@
 typedef struct {
     int flag; // 是否通过，0表示accept，1表示discard
     // 尝试去掉读写锁
-//    rwlock_t lock;  // 读写锁，用来控制对flag的访问
+    //rwlock_t lock;  // 读写锁，用来控制对flag的访问
 } UserCmd;
 
 /**
