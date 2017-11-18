@@ -15,11 +15,18 @@
 /**
  * 表示用户对该数据包返回的操作指令
  */
+enum UserCmd {
+    ACCEPT,
+    DISCARD,
+};
+
+/**
+ * 表示客户端的连接信息
+ */
 typedef struct {
-    int flag; // 是否通过，0表示accept，1表示discard
-    // 尝试去掉读写锁
-    //rwlock_t lock;  // 读写锁，用来控制对flag的访问
-} UserCmd;
+    __u32 pid;  // 客户端pid
+    rwlock_t lock;  // 读写锁，用来控制pid的访问
+} UserInfo;
 
 /**
  * 在内核中创建netLink，当用户态传来消息时触发绑定的接收消息函数

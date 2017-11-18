@@ -10,6 +10,7 @@
 #define NET_FILTER_LOG_H
 
 #include "conf.h"
+#include "netLink.h"
 
 #define DEBUG(...) printk(KERN_DEBUG "DEBUG:" __VA_ARGS__)
 #define INFO(...) printk(KERN_INFO "INFO:" __VA_ARGS__)
@@ -19,10 +20,5 @@
 // MSG宏用于将指定长度字符串通过netLink发送到用户态
 #define MSG(msg) sendMsgNetLink(msg, strlen(msg))
 #define MSG_LEN(msg, len) sendMsgNetLink(msg, len)
-
-// MSG_FORMAT宏用于将格式化字符串发送到用户态，无需指定字符串长度
-static char messageBuf[MAX_MSG_LEN];
-#define MSG_FORMAT(...) snprintf(messageBuf, MAX_MSG_LEN, __VA_ARGS__);sendMsgNetLink(messageBuf, MAX_MSG_LEN - 1);
-
 
 #endif //NET_FILTER_LOG_H

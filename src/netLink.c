@@ -17,18 +17,12 @@
  */
 static struct sock *nl_sk;
 
-/**
- * 表示客户端的连接信息
- */
-static struct {
-    __u32 pid;  // 客户端pid
-    rwlock_t lock;  // 读写锁，用来控制pid的访问
-} userInfo;
+UserInfo userInfo;
 
 /**
  * 表示用户对该数据包返回的操作指令
  */
-UserCmd userCmd;
+enum UserCmd userCmd;
 
 extern struct completion msgCompletion;
 
@@ -73,13 +67,14 @@ static void recvMsgNetLink(struct sk_buff *skb) {
             }
             else if (nlh->nlmsg_type == NET_LINK_ACCEPT) {
                 INFO("netLink accept");
+                userCmd = ACCEPT;
             }
             else if (nlh->nlmsg_type == NET_LINK_DISCARD) {
                 INFO("netLink discard");
 //                write_lock_bh(&userCmd.lock);
 //                userCmd.flag = 1;
 //                write_unlock_bh(&userCmd.lock);
-                userCmd.flag = 1;
+                userCmd = DISCARD;
             }
             else {
                 // 如果消息类型为其他指令,有待操作
@@ -139,7 +134,6 @@ void deleteNetLink(void) {
         DEBUG("release netLink socket!\n");
         netlink_kernel_release(nl_sk);
     }
-    return 0;
 }
 
 int sendMsgNetLink(char *message, int len) {

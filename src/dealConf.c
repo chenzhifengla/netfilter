@@ -9,11 +9,6 @@
 #include "log.h"
 #include "dealConf.h"
 
-int isMatch(char* data, int len) {
-    // TODO
-    return 1;
-}
-
 /**
  * 将无符号单个字符转换成字符串表示的数字
  * @param str 目的字符串，需要预先分配空间
