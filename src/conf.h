@@ -14,9 +14,9 @@
 // -1表示从左往右，0表示双向，1表示从右往左
 #define DIRECTION 0
 // 匹配串头
-#define TAG_HEAD "<event"
+#define TAG_HEAD "<xml type=\"event\""
 // 匹配串尾
-#define TAG_TAIL "/>"
+#define TAG_TAIL "</xml>"
 // 关键事件的标志
 #define IMPORTANT_FLAG "important=\"1\""
 // 内核等待时间(ms)
