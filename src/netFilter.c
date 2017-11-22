@@ -87,7 +87,11 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
     // 事件范围
     char *tag_head;
     char *tag_tail;
-    unsigned int tag_len;
+    unsigned long tag_len;
+
+    // 关键事件标志
+    char *important_flag_pos;
+    int important_flag;
 
     eth = eth_hdr(skb); // 获得以太网帧首部指针
     if(!skb || !eth) {
@@ -136,23 +140,37 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
     // 3. 确定事件长度
     tag_len = tag_tail - tag_head + sizeof(TAG_TAIL) - 1;
 
-    // 4. 先将指令置为通过
+    // 4. 在事件中查找关键事件的标志
+    important_flag_pos = strstr(tag_head + sizeof(TAG_HEAD), IMPORTANT_FLAG);
+    if (important_flag_pos == NULL || important_flag_pos > tag_tail) {
+        important_flag = 0;
+    }
+    else {
+        important_flag = 1;
+    }
+
+    // 5. 先将指令置为通过
     userCmd = ACCEPT;
 
-    // 5. 判断是否有客户端连接
+    // 6. 判断是否有客户端连接
     if (userInfo.pid == 0) {
         return NF_ACCEPT;
     }
 
-    // 3. 发送消息
-    MSG_LEN(tag_head, tag_len);
+    // 7. 发送消息
+    sendMsgNetLink(tag_head, tag_len);
 
-    // 4. 消息发出后使用完成量进行超时阻塞
-    wait_for_completion_timeout(&msgCompletion, KERNEL_WAIT_MILISEC);
+    // 8. 消息发出后对关键事件使用完成量进行超时阻塞，非关键事件直接通过
+    if (important_flag == 1) {
+        wait_for_completion_timeout(&msgCompletion, KERNEL_WAIT_MILISEC);
 
-    // 直接读userCmd
-    if (userCmd == DISCARD) return NF_DROP;
-    else return NF_ACCEPT;
+        // 直接读userCmd
+        if (userCmd == DISCARD) return NF_DROP;
+        else return NF_ACCEPT;
+    }
+    else {
+        return NF_ACCEPT;
+    }
 }
 
 

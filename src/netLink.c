@@ -55,12 +55,12 @@ static void recvMsgNetLink(struct sk_buff *skb) {
                 write_lock_bh(&userInfo.lock);     // 获取写锁
                 userInfo.pid = nlh->nlmsg_pid;
                 write_unlock_bh(&userInfo.lock);   // 释放写锁
-                MSG("you have connected to the kernel!");  // 向客户端发送回复消息
+//                MSG("you have connected to the kernel!");  // 向客户端发送回复消息
             }
             else if (nlh->nlmsg_type == NET_LINK_DISCONNECT){
                 // 如果消息类型为释放连接
                 INFO("netLink client disconnect");
-                MSG("you have disconnected to the kernel!");  // 向客户端发送回复消息
+//                MSG("you have disconnected to the kernel!");  // 向客户端发送回复消息
                 write_lock_bh(&userInfo.lock);     // 获取写锁
                 userInfo.pid = 0;  // 将pid置0
                 write_unlock_bh(&userInfo.lock);   // 释放写锁
@@ -78,7 +78,7 @@ static void recvMsgNetLink(struct sk_buff *skb) {
             }
             else {
                 // 如果消息类型为其他指令,有待操作
-                MSG("cannot recognize command!");
+                INFO("cannot recognize command!");
             }
         }
         else{
