@@ -45,7 +45,7 @@ static void recvMsgNetLink(struct sk_buff *skb) {
 
     if (skb->len >= NLMSG_SPACE(0)) {
         nlh = nlmsg_hdr(skb);   // 获取netLink消息首部指针
-        DEBUG("nlh->nlmsg_len = %d, sizeof(struct nlmsghdr)=%lu, skb->len=%d, nlh->nlmsg_len=%d", nlh->nlmsg_len, sizeof(struct nlmsghdr), skb->len, nlh->nlmsg_len);
+//        DEBUG("nlh->nlmsg_len = %d, sizeof(struct nlmsghdr)=%lu, skb->len=%d, nlh->nlmsg_len=%d", nlh->nlmsg_len, sizeof(struct nlmsghdr), skb->len, nlh->nlmsg_len);
         if ((nlh->nlmsg_len >= sizeof(struct nlmsghdr)) && (skb->len >= nlh->nlmsg_len)){
             // 如果首部完整
             if (nlh->nlmsg_type == NET_LINK_CONNECT){
@@ -55,12 +55,11 @@ static void recvMsgNetLink(struct sk_buff *skb) {
                 write_lock_bh(&userInfo.lock);     // 获取写锁
                 userInfo.pid = nlh->nlmsg_pid;
                 write_unlock_bh(&userInfo.lock);   // 释放写锁
-//                MSG("you have connected to the kernel!");  // 向客户端发送回复消息
+                sendMsgNetLink("you have connected to the kernel!", strlen("you have connected to the kernel!"));  // 向客户端发送回复消息
             }
             else if (nlh->nlmsg_type == NET_LINK_DISCONNECT){
                 // 如果消息类型为释放连接
                 INFO("netLink client disconnect");
-//                MSG("you have disconnected to the kernel!");  // 向客户端发送回复消息
                 write_lock_bh(&userInfo.lock);     // 获取写锁
                 userInfo.pid = 0;  // 将pid置0
                 write_unlock_bh(&userInfo.lock);   // 释放写锁
@@ -68,6 +67,8 @@ static void recvMsgNetLink(struct sk_buff *skb) {
             else if (nlh->nlmsg_type == NET_LINK_ACCEPT) {
                 INFO("netLink accept");
                 userCmd = ACCEPT;
+                // 唤醒阻塞的内核线程
+                complete(&msgCompletion);
             }
             else if (nlh->nlmsg_type == NET_LINK_DISCARD) {
                 INFO("netLink discard");
@@ -75,6 +76,8 @@ static void recvMsgNetLink(struct sk_buff *skb) {
 //                userCmd.flag = 1;
 //                write_unlock_bh(&userCmd.lock);
                 userCmd = DISCARD;
+                // 唤醒阻塞的内核线程
+                complete(&msgCompletion);
             }
             else {
                 // 如果消息类型为其他指令,有待操作
@@ -86,8 +89,6 @@ static void recvMsgNetLink(struct sk_buff *skb) {
         }
 //        memcpy(str, NLMSG_DATA(nlh), sizeof(str));  // 获取netLink消息主体
 //        INFO("netLink message received:%s\n", str);
-        // 唤醒阻塞的内核线程
-        complete(&msgCompletion);
     }
 }
 
@@ -157,7 +158,7 @@ int sendMsgNetLink(char *message, int len) {
     }
     read_unlock_bh(&userInfo.lock);    // 释放读锁
 
-//    len += 1;   // 实际发送的消息要带上终止符
+    len += 1;   // 实际发送的消息要带上终止符
     totalSize = NLMSG_SPACE(len);    // 获取总长度，NLMSG_SPACE宏会计算消息加上首部再对齐后的长度
 
     skb = alloc_skb(totalSize, GFP_ATOMIC); //申请一个skb,长度为total_size,优先级为GFP_ATOMIC
@@ -176,8 +177,9 @@ int sendMsgNetLink(char *message, int len) {
 #endif
 
     // 填充nlh的载荷部分，NLMSG_DATA宏用于取得nlh载荷部分首地址
-    strncpy(NLMSG_DATA(nlh), message, len);
-    DEBUG("my_net_link:send message '%s'.\n", (char *) NLMSG_DATA(nlh));
+    strncpy(NLMSG_DATA(nlh), message, len - 1);
+    strncpy(NLMSG_DATA(nlh) + len - 1, "", 1);
+//    DEBUG("my_net_link:send message '%s'.\n", (char *) NLMSG_DATA(nlh));
 
     //nlh->nlmsg_len = skb->tail - old_tail;  // 获取当前skb中填充消息的长度
     // 为python客户端尝试另一种填充长度的方法

@@ -64,13 +64,13 @@ int initNetFilter(void){
     }
 
     //注册一个netFilter钩子
-    DEBUG("register netFilter hook!\n");
+    INFO("register netFilter hook!\n");
     nf_register_hook(&nfho_single);
     return 0;
 }
 
 void releaseNetFilter(void){
-    DEBUG("unRegister netFilter hook!");
+    INFO("unRegister netFilter hook!");
     nf_unregister_hook(&nfho_single);   // 卸载钩子
 }
 
@@ -162,11 +162,20 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
 
     // 8. 消息发出后对关键事件使用完成量进行超时阻塞，非关键事件直接通过
     if (important_flag == 1) {
-        wait_for_completion_timeout(&msgCompletion, KERNEL_WAIT_MILISEC);
+        INFO("important event:%.*s", (int)tag_len, tag_head);
+        if (wait_for_completion_timeout(&msgCompletion, KERNEL_WAIT_MILISEC) == 0) {
+            WARNING("event %.*s wait response timeout", (int)tag_len, tag_head);
+        }
 
         // 直接读userCmd
-        if (userCmd == DISCARD) return NF_DROP;
-        else return NF_ACCEPT;
+        if (userCmd == DISCARD) {
+            INFO("drop event %.*s", (int)tag_len, tag_head);
+            return NF_DROP;
+        }
+        else {
+            INFO("accept event %.*s", (int)tag_len, tag_head);
+            return NF_ACCEPT;
+        }
     }
     else {
         return NF_ACCEPT;
