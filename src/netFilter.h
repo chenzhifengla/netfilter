@@ -30,5 +30,4 @@ void releaseNetFilter(void);
 
 unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct net_device *in,
                        const struct net_device *out, int (*okfn)(struct sk_buff *));
-
 #endif //NET_FILTER_NET_FILTER_H

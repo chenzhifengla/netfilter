@@ -1,10 +1,15 @@
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/uaccess.h>
-#include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/slab.h>
+#include <linux/crypto.h>
+#include <linux/scatterlist.h>
+#include <linux/gfp.h>
+#include <linux/err.h>
+#include <linux/syscalls.h>
 
 #include "log.h"
 #include "dealConf.h"
@@ -58,4 +63,3 @@ char *in_ntoa(char *sip, __u32 in) {
 
     return sip;
 }
-

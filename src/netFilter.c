@@ -23,9 +23,11 @@
 #include "dealConf.h"
 #include "netLink.h"
 
-extern enum UserCmd userCmd; // netLink中的全局变量，表示用户指令
+extern UserCmd userCmd; // netLink中的全局变量，表示用户指令
 
-extern UserInfo userInfo;
+extern UserInfo userInfo;   // netlink中的全局变量，表示用户PID信息
+
+extern CompletionTimeout completionTimeout; // 对内核完成量超时次数的计数
 
 /**
  * 完成量，内核态发数据后阻塞等netlink收消息唤醒
@@ -66,6 +68,7 @@ int initNetFilter(void){
     //注册一个netFilter钩子
     INFO("register netFilter hook!\n");
     nf_register_hook(&nfho_single);
+
     return 0;
 }
 
@@ -93,27 +96,36 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
     char *important_flag_pos;
     int important_flag;
 
+    // 1. 判断是否已经有客户端连接
+    read_lock_bh(&userInfo.lock);   // 获取读锁
+    if (userInfo.pid == 0) {
+        read_unlock_bh(&userInfo.lock); // 释放读锁
+        return NF_ACCEPT;
+    }
+    read_unlock_bh(&userInfo.lock); // 释放读锁
+
+    // 2. 判断是否为无效或者空数据包
     eth = eth_hdr(skb); // 获得以太网帧首部指针
     if(!skb || !eth) {
         return NF_ACCEPT;
     }
 
-    // 过滤掉广播数据
-    if(skb->pkt_type == PACKET_BROADCAST) {
+    // 3. 过滤掉发往本地主机的数据、以太网广播报文、以太网多播报文、本地主机环回报文，只留下发往其他主机的报文
+    if(skb->pkt_type != PACKET_OTHERHOST) {
         return NF_ACCEPT;
     }
 
     // IP head和body长度
     iph = ip_hdr(skb);  // 获得ip数据报首部指针，或者iph = (struct iphdr *) data;
 
-    // 按源IP和目的IP过滤IP数据报
+    // 4. 按源IP和目的IP过滤IP数据报
     if (iph->saddr != in_aton(SOURCE_IP)
         || iph->daddr != in_aton(TARGET_IP)) {
         // 比较配置中ip与获取ip的16进制形式
         return NF_ACCEPT;
     }
 
-    // 过滤掉非UDP协议
+    // 5. 过滤掉非UDP协议
     if (iph->protocol != IPPROTO_UDP) {
         return NF_ACCEPT;
     }
@@ -125,36 +137,28 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
     // data指向UDP报文body
     data = (char*)udp_head + udp_head_len;
 
-    // 1. 在data中搜索匹配head
+    // 6. 在data中搜索匹配head
     tag_head = strstr(data, TAG_HEAD);
     if (tag_head == NULL) {
         return NF_ACCEPT;
     }
 
-    // 2. 在data中继续搜索匹配tail
+    // 在data中继续搜索匹配tail
     tag_tail =strstr(data, TAG_TAIL);
     if (tag_tail == NULL) {
         return NF_ACCEPT;
     }
 
-    // 3. 确定事件长度
+    // 确定事件长度
     tag_len = tag_tail - tag_head + sizeof(TAG_TAIL) - 1;
 
-    // 4. 在事件中查找关键事件的标志
+    // 在事件中查找关键事件的标志
     important_flag_pos = strstr(tag_head + sizeof(TAG_HEAD), IMPORTANT_FLAG);
     if (important_flag_pos == NULL || important_flag_pos > tag_tail) {
         important_flag = 0;
     }
     else {
         important_flag = 1;
-    }
-
-    // 5. 先将指令置为通过
-    userCmd = ACCEPT;
-
-    // 6. 判断是否有客户端连接
-    if (userInfo.pid == 0) {
-        return NF_ACCEPT;
     }
 
     // 7. 发送消息
@@ -165,15 +169,21 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
         INFO("important event:%.*s", (int)tag_len, tag_head);
         if (wait_for_completion_timeout(&msgCompletion, KERNEL_WAIT_MILISEC) == 0) {
             WARNING("event %.*s wait response timeout", (int)tag_len, tag_head);
+            write_lock_bh(&completionTimeout.lock);
+            ++completionTimeout.times;
+            write_unlock_bh(&completionTimeout.lock);
         }
 
         // 直接读userCmd
-        if (userCmd == DISCARD) {
+        read_lock_bh(&userCmd.lock);
+        if (userCmd.cmd == DISCARD) {
             INFO("drop event %.*s", (int)tag_len, tag_head);
+            read_unlock_bh(&userCmd.lock);
             return NF_DROP;
         }
         else {
             INFO("accept event %.*s", (int)tag_len, tag_head);
+            read_unlock_bh(&userCmd.lock);
             return NF_ACCEPT;
         }
     }

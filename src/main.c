@@ -23,6 +23,9 @@
 
 MODULE_LICENSE("GPL");
 
+/**
+ * 内核完成量，供netfilter和netlink进行同步
+ */
 struct completion msgCompletion;
 
 /**

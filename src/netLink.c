@@ -16,13 +16,18 @@
  * netLink创建的与客户端通信的内核套接字
  */
 static struct sock *nl_sk;
-
+/**
+ * 表示客户端的连接信息
+ */
 UserInfo userInfo;
-
 /**
  * 表示用户对该数据包返回的操作指令
  */
-enum UserCmd userCmd;
+UserCmd userCmd;
+/**
+ * 对内核完成量超时次数的计数
+ */
+CompletionTimeout completionTimeout;
 
 extern struct completion msgCompletion;
 
@@ -52,32 +57,62 @@ static void recvMsgNetLink(struct sk_buff *skb) {
                 // 如果消息类型为请求连接
                 INFO("netLink client connect");
                 INFO("netLink client pid is %d", nlh->nlmsg_pid);
+
                 write_lock_bh(&userInfo.lock);     // 获取写锁
                 userInfo.pid = nlh->nlmsg_pid;
                 write_unlock_bh(&userInfo.lock);   // 释放写锁
+
+                // 初始化时将CompletionTimeout次数计0
+                write_lock_bh(&completionTimeout.lock);
+                completionTimeout.times = 0;
+                write_unlock_bh(&completionTimeout.lock);
+
                 sendMsgNetLink("you have connected to the kernel!", strlen("you have connected to the kernel!"));  // 向客户端发送回复消息
             }
             else if (nlh->nlmsg_type == NET_LINK_DISCONNECT){
                 // 如果消息类型为释放连接
                 INFO("netLink client disconnect");
+
                 write_lock_bh(&userInfo.lock);     // 获取写锁
                 userInfo.pid = 0;  // 将pid置0
                 write_unlock_bh(&userInfo.lock);   // 释放写锁
-            }
-            else if (nlh->nlmsg_type == NET_LINK_ACCEPT) {
-                INFO("netLink accept");
-                userCmd = ACCEPT;
-                // 唤醒阻塞的内核线程
+
+                // 对可能还在等待的内核唤醒
+                write_lock_bh(&userCmd.lock);   // 获取写锁
+                userCmd.cmd = ACCEPT;
+                write_unlock_bh(&userCmd.lock);   // 释放写锁
                 complete(&msgCompletion);
+
+                write_lock_bh(&completionTimeout.lock);
+                completionTimeout.times = 0;
+                write_unlock_bh(&completionTimeout.lock);
             }
-            else if (nlh->nlmsg_type == NET_LINK_DISCARD) {
-                INFO("netLink discard");
-//                write_lock_bh(&userCmd.lock);
-//                userCmd.flag = 1;
-//                write_unlock_bh(&userCmd.lock);
-                userCmd = DISCARD;
-                // 唤醒阻塞的内核线程
-                complete(&msgCompletion);
+            else if (nlh->nlmsg_type == NET_LINK_ACCEPT || nlh->nlmsg_type == NET_LINK_DISCARD) {
+                write_lock_bh(&completionTimeout.lock);
+                if (completionTimeout.times > 0) {
+                    INFO("this is old command");
+                    --completionTimeout.times;
+                    write_unlock_bh(&completionTimeout.lock);
+                    return;
+                }
+                write_unlock_bh(&completionTimeout.lock);
+
+                if (nlh->nlmsg_type == NET_LINK_ACCEPT) {
+                    INFO("netLink accept");
+                    write_lock_bh(&userCmd.lock);   // 获取写锁
+                    userCmd.cmd = ACCEPT;
+                    write_unlock_bh(&userCmd.lock);   // 释放写锁
+                    // 唤醒阻塞的内核线程
+                    complete(&msgCompletion);
+                }
+                else if (nlh->nlmsg_type == NET_LINK_DISCARD) {
+                    INFO("netLink discard");
+                    write_lock_bh(&userCmd.lock);   // 获取写锁
+                    userCmd.cmd = DISCARD;
+                    write_unlock_bh(&userCmd.lock); // 释放写锁
+                    // 唤醒阻塞的内核线程
+                    complete(&msgCompletion);
+                }
             }
             else {
                 // 如果消息类型为其他指令,有待操作

@@ -20,6 +20,6 @@
 // 关键事件的标志
 #define IMPORTANT_FLAG "important=\"1\""
 // 内核等待时间(ms)
-#define KERNEL_WAIT_MILISEC 100
+#define KERNEL_WAIT_MILISEC 200
 
 #endif //NET_FILTER_CONF_H
