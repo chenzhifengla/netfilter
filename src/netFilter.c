@@ -23,11 +23,11 @@
 #include "dealConf.h"
 #include "netLink.h"
 
-extern UserCmd userCmd; // netLink中的全局变量，表示用户指令
+extern enum UserCmd userCmd; // netLink中的全局变量，表示用户指令
 
-extern UserInfo userInfo;   // netlink中的全局变量，表示用户PID信息
+extern __u32 userPid;   // netlink中的全局变量，表示用户PID信息
 
-extern CompletionTimeout completionTimeout; // 对内核完成量超时次数的计数
+extern __u32 completionTimeoutTimes; // 对内核完成量超时次数的计数
 
 /**
  * 完成量，内核态发数据后阻塞等netlink收消息唤醒
@@ -97,12 +97,9 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
     int important_flag;
 
     // 1. 判断是否已经有客户端连接
-    read_lock_bh(&userInfo.lock);   // 获取读锁
-    if (userInfo.pid == 0) {
-        read_unlock_bh(&userInfo.lock); // 释放读锁
+    if (userPid == 0) {
         return NF_ACCEPT;
     }
-    read_unlock_bh(&userInfo.lock); // 释放读锁
 
     // 2. 判断是否为无效或者空数据包
     eth = eth_hdr(skb); // 获得以太网帧首部指针
@@ -168,22 +165,18 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
     if (important_flag == 1) {
         INFO("important event:%.*s", (int)tag_len, tag_head);
         if (wait_for_completion_timeout(&msgCompletion, KERNEL_WAIT_MILISEC) == 0) {
+            ++completionTimeoutTimes;
             WARNING("event %.*s wait response timeout", (int)tag_len, tag_head);
-            write_lock_bh(&completionTimeout.lock);
-            ++completionTimeout.times;
-            write_unlock_bh(&completionTimeout.lock);
+            return NF_ACCEPT;
         }
 
         // 直接读userCmd
-        read_lock_bh(&userCmd.lock);
-        if (userCmd.cmd == DISCARD) {
+        if (userCmd == DISCARD) {
             INFO("drop event %.*s", (int)tag_len, tag_head);
-            read_unlock_bh(&userCmd.lock);
             return NF_DROP;
         }
         else {
             INFO("accept event %.*s", (int)tag_len, tag_head);
-            read_unlock_bh(&userCmd.lock);
             return NF_ACCEPT;
         }
     }

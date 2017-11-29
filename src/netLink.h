@@ -15,31 +15,10 @@
 /**
  * 表示用户对该数据包返回的操作指令
  */
-enum Cmd {
+enum UserCmd {
     ACCEPT,
     DISCARD,
 };
-
-typedef struct {
-    enum Cmd cmd;
-    rwlock_t lock;  // 读写锁，用来控制cmd的访问
-} UserCmd;
-
-/**
- * 表示客户端的连接信息
- */
-typedef struct {
-    __u32 pid;  // 客户端pid
-    rwlock_t lock;  // 读写锁，用来控制pid的访问
-} UserInfo;
-
-/**
- * 用来对内核完成量超时的计数
- */
-typedef struct {
-    int times;  // 次数
-    rwlock_t lock;  // 读写锁，用来控制times的访问
-} CompletionTimeout;
 
 /**
  * 在内核中创建netLink，当用户态传来消息时触发绑定的接收消息函数

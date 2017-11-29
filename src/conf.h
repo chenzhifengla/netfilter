@@ -8,7 +8,7 @@
 // 0表示桥接，1表示NAT
 #define BRIDGE 0
 // 源IP
-#define SOURCE_IP "10.108.167.43"
+#define SOURCE_IP "10.108.166.210"
 // 目的IP
 #define TARGET_IP "10.205.41.48"
 // -1表示从左往右，0表示双向，1表示从右往左
