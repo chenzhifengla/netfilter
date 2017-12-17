@@ -19,15 +19,15 @@ static struct sock *nl_sk;
 /**
  * 表示客户端的连接pid
  */
-__u32 userPid;
+UserInfo userInfo;
 /**
  * 表示用户对该数据包返回的操作指令
  */
-enum UserCmd userCmd;
+UserCmd userCmd;
 /**
  * 对内核完成量超时次数的计数
  */
-__u32 completionTimeoutTimes;
+TimeoutStruct timeoutStruct;
 
 extern struct completion msgCompletion;
 
@@ -55,48 +55,72 @@ static void recvMsgNetLink(struct sk_buff *skb) {
             // 如果首部完整
             if (nlh->nlmsg_type == NET_LINK_CONNECT){
                 // 如果消息类型为请求连接
-                INFO("netLink client connect");
+                INFO("netLink client connect msg");
                 INFO("netLink client pid is %d", nlh->nlmsg_pid);
 
-                userPid = nlh->nlmsg_pid;
+                write_lock_bh(&userInfo.lock);
+                userInfo.pid = nlh->nlmsg_pid;
+                write_unlock_bh(&userInfo.lock);
 
                 // 初始化时将CompletionTimeout次数计0
-                completionTimeoutTimes = 0;
+                write_lock_bh(&timeoutStruct.lock);
+                timeoutStruct.timeoutTimes = 0;
+                write_unlock_bh(&timeoutStruct.lock);
 
-                sendMsgNetLink("you have connected to the kernel!", strlen("you have connected to the kernel!"));  // 向客户端发送回复消息
+                //sendMsgNetLink("you have connected to the kernel!", strlen("you have connected to the kernel!"));  // 向客户端发送回复消息
             }
             else if (nlh->nlmsg_type == NET_LINK_DISCONNECT){
                 // 如果消息类型为释放连接
                 INFO("netLink client disconnect");
 
-                userPid = 0;
+                write_lock_bh(&userInfo.lock);
+                if (nlh->nlmsg_pid == userInfo.pid) {
+                    userInfo.pid = 0;
+                }
+                else {
+                    ERROR("user pid is changed!");
+                }
+                write_unlock_bh(&userInfo.lock);
 
                 // 对可能还在等待的内核唤醒
-                userCmd = ACCEPT;
+                write_lock_bh(&userCmd.lock);
+                userCmd.userCmdEnum = ACCEPT;
+                write_unlock_bh(&userCmd.lock);
+
                 complete(&msgCompletion);
 
-                completionTimeoutTimes = 0;
+                // 清空超时次数
+                write_lock_bh(&timeoutStruct.lock);
+                timeoutStruct.timeoutTimes = 0;
+                write_unlock_bh(&timeoutStruct.lock);
             }
             else if (nlh->nlmsg_type == NET_LINK_ACCEPT || nlh->nlmsg_type == NET_LINK_DISCARD) {
-                if (completionTimeoutTimes > 0) {
-                    INFO("this is old command");
-                    --completionTimeoutTimes;
+                write_lock_bh(&timeoutStruct.lock);
+                if (timeoutStruct.timeoutTimes > 0) {
+                    INFO("recvd timeout command");
+                    --timeoutStruct.timeoutTimes;
+                    write_unlock_bh(&timeoutStruct.lock);
                     return;
                 }
+                write_unlock_bh(&timeoutStruct.lock);
+
+                write_lock_bh(&userCmd.lock);
                 if (nlh->nlmsg_type == NET_LINK_ACCEPT) {
                     INFO("netLink accept");
-                    userCmd = ACCEPT;
+                    userCmd.userCmdEnum = ACCEPT;
                 }
-                else if (nlh->nlmsg_type == NET_LINK_DISCARD) {
+                else {
                     INFO("netLink discard");
-                    userCmd = DISCARD;
+                    userCmd.userCmdEnum = DISCARD;
                 }
+                write_unlock_bh(&userCmd.lock);
+
                 // 唤醒阻塞的内核线程
                 complete(&msgCompletion);
             }
             else {
                 // 如果消息类型为其他指令,有待操作
-                INFO("cannot recognize command!");
+                WARNING("unkown user cmd %d", nlh->nlmsg_type);
             }
         }
         else{
@@ -135,7 +159,9 @@ int createNetLink(void) {
 
     // 初始时将客户端pid置0
     DEBUG("set client pid to 0\n");
-    userPid = 0;
+    write_lock_bh(&userInfo.lock);
+    userInfo.pid = 0;
+    write_unlock_bh(&userInfo.lock);
     return 0;
 }
 
@@ -157,11 +183,6 @@ int sendMsgNetLink(char *message, int len) {
     if (!message || !nl_sk) {
         // 异常情况，直接返回
         return 1;
-    }
-
-    // 先判断有无netLink客户端连接
-    if (!userPid){
-        return 1;  // 如果pid=0,直接返回
     }
 
     len += 1;   // 实际发送的消息要带上终止符
@@ -197,11 +218,14 @@ int sendMsgNetLink(char *message, int len) {
     NETLINK_CB(skb).dst_group = 0;    // 目标为进程时，设置为0
 
     // 向客户端发消息
-    if (userPid == 0){
+    read_lock_bh(&userInfo.lock);
+    if (userInfo.pid == 0){
+        read_unlock_bh(&userInfo.lock);
         return -1; // 如果客户端断开了连接，直接返回
     }
     // 发送单播消息，参数分别为nl_sk(内核套接字), skb(套接字缓冲区), pid(目的进程), MSG_DONTWAIT(不阻塞)
-    ret = netlink_unicast(nl_sk, skb, userPid, MSG_DONTWAIT); // 发送单播消息
+    ret = netlink_unicast(nl_sk, skb, userInfo.pid, MSG_DONTWAIT); // 发送单播消息
+    read_unlock_bh(&userInfo.lock);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 16)
     // 如果内核版本过小，需要做一个出错时跳转标签

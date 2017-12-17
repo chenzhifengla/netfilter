@@ -15,10 +15,31 @@
 /**
  * 表示用户对该数据包返回的操作指令
  */
-enum UserCmd {
+enum UserCmdEnum {
     ACCEPT,
     DISCARD,
 };
+
+typedef struct {
+    enum UserCmdEnum userCmdEnum;
+    rwlock_t lock;
+} UserCmd;
+
+/**
+ * 表示用户的PID
+ */
+typedef struct {
+    __u32 pid;
+    rwlock_t lock;
+} UserInfo;
+
+/**
+ * 表示超时次数
+ */
+typedef struct {
+    __u32 timeoutTimes;
+    rwlock_t lock;
+} TimeoutStruct;
 
 /**
  * 在内核中创建netLink，当用户态传来消息时触发绑定的接收消息函数

@@ -23,11 +23,15 @@
 #include "dealConf.h"
 #include "netLink.h"
 
-extern enum UserCmd userCmd; // netLink中的全局变量，表示用户指令
+extern UserCmd userCmd; // netLink中的全局变量，表示用户指令
 
-extern __u32 userPid;   // netlink中的全局变量，表示用户PID信息
+extern UserInfo userInfo;   // netlink中的全局变量，表示用户PID信息
 
-extern __u32 completionTimeoutTimes; // 对内核完成量超时次数的计数
+extern TimeoutStruct timeoutStruct; // 对内核完成量超时次数的计数
+
+struct timeval startTime, endTime;
+unsigned long timeSec;
+unsigned long timeUSec;
 
 /**
  * 完成量，内核态发数据后阻塞等netlink收消息唤醒
@@ -51,7 +55,8 @@ int initNetFilter(void){
         INFO("trigger before data into the bridge\n");
         nfho_single.hooknum = NF_BR_PRE_ROUTING;
         nfho_single.pf = PF_BRIDGE;
-        nfho_single.priority = NF_BR_PRI_FIRST;
+        //nfho_single.priority = NF_BR_PRI_FIRST;
+        nfho_single.priority = NF_BR_PRI_BRNF;
     }
     else if (BRIDGE == 1) {
         // 数据流入网络层前触发
@@ -97,9 +102,12 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
     int important_flag;
 
     // 1. 判断是否已经有客户端连接
-    if (userPid == 0) {
+    read_lock_bh(&userInfo.lock);
+    if (userInfo.pid == 0) {
+        read_unlock_bh(&userInfo.lock);
         return NF_ACCEPT;
     }
+    read_unlock_bh(&userInfo.lock);
 
     // 2. 判断是否为无效或者空数据包
     eth = eth_hdr(skb); // 获得以太网帧首部指针
@@ -133,17 +141,24 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
 
     // data指向UDP报文body
     data = (char*)udp_head + udp_head_len;
+    //DEBUG("udp data:%s", data);
 
     // 6. 在data中搜索匹配head
     tag_head = strstr(data, TAG_HEAD);
     if (tag_head == NULL) {
         return NF_ACCEPT;
     }
+    else {
+        //DEBUG("search head success!");
+    }
 
     // 在data中继续搜索匹配tail
     tag_tail =strstr(data, TAG_TAIL);
     if (tag_tail == NULL) {
         return NF_ACCEPT;
+    }
+    else {
+        //DEBUG("search tail success!");
     }
 
     // 确定事件长度
@@ -159,30 +174,59 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
     }
 
     // 7. 发送消息
-    sendMsgNetLink(tag_head, tag_len);
+    //sendMsgNetLink(tag_head, tag_len);
 
     // 8. 消息发出后对关键事件使用完成量进行超时阻塞，非关键事件直接通过
     if (important_flag == 1) {
         INFO("important event:%.*s", (int)tag_len, tag_head);
+        sendMsgNetLink(tag_head, tag_len);
+
+        do_gettimeofday(&startTime);
         if (wait_for_completion_timeout(&msgCompletion, KERNEL_WAIT_MILISEC) == 0) {
-            ++completionTimeoutTimes;
+            do_gettimeofday(&endTime);
+            DEBUG("start sec is %d", startTime.tv_sec);
+            DEBUG("end sec is %d", endTime.tv_sec);
+
+            timeUSec = (endTime.tv_sec - startTime.tv_sec) * 1000000 + endTime.tv_usec - startTime.tv_usec;
+            timeSec = timeUSec / 1000000;
+            timeUSec -= timeSec * 1000000;
+            DEBUG("wait %ld s, %ld us, timeout", timeSec, timeUSec);
+
+            write_lock_bh(&timeoutStruct.lock);
+            ++timeoutStruct.timeoutTimes;
+            write_unlock_bh(&timeoutStruct.lock);
             WARNING("event %.*s wait response timeout", (int)tag_len, tag_head);
             return NF_ACCEPT;
         }
+        else {
+            do_gettimeofday(&endTime);
+            DEBUG("start sec is %d", startTime.tv_sec);
+            DEBUG("end sec is %d", endTime.tv_sec);
+
+            timeUSec = (endTime.tv_sec - startTime.tv_sec) * 1000000 + endTime.tv_usec - startTime.tv_usec;
+            timeSec = timeUSec / 1000000;
+            timeUSec -= timeSec * 1000000;
+
+            WARNING("recvd response");
+            DEBUG("wait %ld s, %ld us", timeSec, timeUSec);
+        }
 
         // 直接读userCmd
-        if (userCmd == DISCARD) {
+        read_lock_bh(&userCmd.lock);
+        if (userCmd.userCmdEnum == DISCARD) {
             INFO("drop event %.*s", (int)tag_len, tag_head);
+            read_unlock_bh(&userCmd.lock);
             return NF_DROP;
         }
         else {
             INFO("accept event %.*s", (int)tag_len, tag_head);
+            read_unlock_bh(&userCmd.lock);
             return NF_ACCEPT;
         }
     }
     else {
+        sendMsgNetLink(tag_head, tag_len);
         return NF_ACCEPT;
     }
 }
-
 
