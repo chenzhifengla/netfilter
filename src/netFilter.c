@@ -174,7 +174,7 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
     }
 
     // 7. 发送消息
-    //sendMsgNetLink(tag_head, tag_len);
+//    sendMsgNetLink(tag_head, tag_len);
 
     // 8. 消息发出后对关键事件使用完成量进行超时阻塞，非关键事件直接通过
     if (important_flag == 1) {

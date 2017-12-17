@@ -46,7 +46,7 @@ static struct netlink_kernel_cfg cfg;
 static void recvMsgNetLink(struct sk_buff *skb) {
     struct nlmsghdr *nlh;   // 指向netLink消息首部的指针
 
-    DEBUG("recvMsgNetLink is triggered\n");
+//    DEBUG("recvMsgNetLink is triggered");
 
     if (skb->len >= NLMSG_SPACE(0)) {
         nlh = nlmsg_hdr(skb);   // 获取netLink消息首部指针
@@ -220,7 +220,7 @@ int sendMsgNetLink(char *message, int len) {
     // 向客户端发消息
     read_lock_bh(&userInfo.lock);
     if (userInfo.pid == 0){
-        read_unlock_bh(&userInfo.lock);
+//        read_unlock_bh(&userInfo.lock);
         return -1; // 如果客户端断开了连接，直接返回
     }
     // 发送单播消息，参数分别为nl_sk(内核套接字), skb(套接字缓冲区), pid(目的进程), MSG_DONTWAIT(不阻塞)
