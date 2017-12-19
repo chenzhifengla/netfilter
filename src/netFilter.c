@@ -91,6 +91,7 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
     int udp_head_len;   // 首部长度
 
     char *data; // data是数据指针游标，从UDP body开始
+    int data_len;
 
     // 事件范围
     char *tag_head;
@@ -101,13 +102,13 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
     char *important_flag_pos;
     int important_flag;
 
-    // 1. 判断是否已经有客户端连接
-    read_lock_bh(&userInfo.lock);
-    if (userInfo.pid == 0) {
-        read_unlock_bh(&userInfo.lock);
-        return NF_ACCEPT;
-    }
-    read_unlock_bh(&userInfo.lock);
+//    // 1. 判断是否已经有客户端连接
+//    read_lock_bh(&userInfo.lock);
+//    if (userInfo.pid == 0) {
+//        read_unlock_bh(&userInfo.lock);
+//        return NF_ACCEPT;
+//    }
+//    read_unlock_bh(&userInfo.lock);
 
     // 2. 判断是否为无效或者空数据包
     eth = eth_hdr(skb); // 获得以太网帧首部指针
@@ -142,6 +143,9 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
 
     // data指向UDP报文body
     data = (char*)udp_head + udp_head_len;
+    data_len = ntohs(udp_head->len) - sizeof(struct udphdr);
+    DEBUG_LEN(data, data_len);
+    DEBUG("udp data len:%d", data_len);
 
     // 6. 在data中搜索匹配head
     tag_head = strstr(data, TAG_HEAD);
@@ -150,7 +154,7 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
         return NF_ACCEPT;
     }
     else {
-//        DEBUG("search head success!");
+        DEBUG("search head success!");
     }
 
     // 在data中继续搜索匹配tail
@@ -160,7 +164,7 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
         return NF_ACCEPT;
     }
     else {
-//        DEBUG("search tail success!");
+        DEBUG("search tail success!");
     }
 
     // 确定事件长度

@@ -23,6 +23,8 @@
 
 MODULE_LICENSE("GPL");
 
+//char MSG_BUF[10000];
+
 /**
  * 内核完成量，供netfilter和netlink进行同步
  */
