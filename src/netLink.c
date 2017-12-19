@@ -82,12 +82,15 @@ static void recvMsgNetLink(struct sk_buff *skb) {
                 }
                 write_unlock_bh(&userInfo.lock);
 
-                // 对可能还在等待的内核唤醒
-                write_lock_bh(&userCmd.lock);
-                userCmd.userCmdEnum = ACCEPT;
-                write_unlock_bh(&userCmd.lock);
+//                // 对可能还在等待的内核唤醒
+//                write_lock_bh(&userCmd.lock);
+//                userCmd.userCmdEnum = ACCEPT;
+//                write_unlock_bh(&userCmd.lock);
+//
+//                complete(&msgCompletion);
 
-                complete(&msgCompletion);
+                // 让还在等待的内核超时
+                mdelay(KERNEL_WAIT_MILISEC);
 
                 // 清空超时次数
                 write_lock_bh(&timeoutStruct.lock);

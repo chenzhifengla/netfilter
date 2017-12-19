@@ -63,3 +63,14 @@ char *in_ntoa(char *sip, __u32 in) {
 
     return sip;
 }
+
+int isImportantEvent(char *event, int eventLen) {
+    char *important_flag_pos;
+    important_flag_pos = strstr(event + sizeof(TAG_HEAD), IMPORTANT_EVENT_NAME_1);
+    if (important_flag_pos == NULL || important_flag_pos > event + eventLen) {
+        return 0;
+    }
+    else {
+        return 1;
+    }
+}

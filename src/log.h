@@ -11,7 +11,7 @@
 
 #include "conf.h"
 
-#define DEBUG(...) printk(KERN_DEBUG "DEBUG:" __VA_ARGS__)
+#define DEBUG(...) //printk(KERN_DEBUG "DEBUG:" __VA_ARGS__)
 #define INFO(...) printk(KERN_INFO "INFO:" __VA_ARGS__)
 #define WARNING(...) printk(KERN_WARNING "WARING:" __VA_ARGS__)
 #define ERROR(...) printk(KERN_ERR "ERROR:" __VA_ARGS__)

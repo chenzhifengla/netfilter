@@ -55,8 +55,8 @@ int initNetFilter(void){
         INFO("trigger before data into the bridge\n");
         nfho_single.hooknum = NF_BR_PRE_ROUTING;
         nfho_single.pf = PF_BRIDGE;
-        //nfho_single.priority = NF_BR_PRI_FIRST;
-        nfho_single.priority = NF_BR_PRI_BRNF;
+        nfho_single.priority = NF_BR_PRI_FIRST;
+//        nfho_single.priority = NF_BR_PRI_BRNF;
     }
     else if (BRIDGE == 1) {
         // 数据流入网络层前触发
@@ -136,42 +136,38 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
     }
 
     // UDP head和body长度
+    skb_set_transport_header(skb, sizeof(struct iphdr));
     udp_head = udp_hdr(skb);
     udp_head_len = sizeof(struct udphdr);
 
     // data指向UDP报文body
     data = (char*)udp_head + udp_head_len;
-    //DEBUG("udp data:%s", data);
 
     // 6. 在data中搜索匹配head
     tag_head = strstr(data, TAG_HEAD);
     if (tag_head == NULL) {
+        DEBUG("search head failed!");
         return NF_ACCEPT;
     }
     else {
-        //DEBUG("search head success!");
+//        DEBUG("search head success!");
     }
 
     // 在data中继续搜索匹配tail
     tag_tail =strstr(data, TAG_TAIL);
     if (tag_tail == NULL) {
+        DEBUG("search tail failed!");
         return NF_ACCEPT;
     }
     else {
-        //DEBUG("search tail success!");
+//        DEBUG("search tail success!");
     }
 
     // 确定事件长度
     tag_len = tag_tail - tag_head + sizeof(TAG_TAIL) - 1;
 
-    // 在事件中查找关键事件的标志
-    important_flag_pos = strstr(tag_head + sizeof(TAG_HEAD), IMPORTANT_FLAG);
-    if (important_flag_pos == NULL || important_flag_pos > tag_tail) {
-        important_flag = 0;
-    }
-    else {
-        important_flag = 1;
-    }
+    // 判断事件是不是关键事件
+    important_flag = isImportantEvent(tag_head, tag_len);
 
     // 7. 发送消息
 //    sendMsgNetLink(tag_head, tag_len);
@@ -225,8 +221,8 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
         }
     }
     else {
+        DEBUG("unimportant event:%.*s", (int)tag_len, tag_head);
         sendMsgNetLink(tag_head, tag_len);
         return NF_ACCEPT;
     }
 }
-

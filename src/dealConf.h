@@ -14,4 +14,12 @@
  */
 char *in_ntoa(char *sip, __u32 in);
 
+/**
+ * 判断事件是不是关键事件
+ * @param event
+ * @param eventLen
+ * @return
+ */
+int isImportantEvent(char *event, int eventLen);
+
 #endif //NET_FILTER_DEAL_CONF_H
