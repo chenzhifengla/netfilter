@@ -188,8 +188,8 @@ int sendMsgNetLink(char *message, int len) {
         return 1;
     }
 
-    len += 1;   // 实际发送的消息要带上终止符
-    totalSize = NLMSG_SPACE(len);    // 获取总长度，NLMSG_SPACE宏会计算消息加上首部再对齐后的长度
+    // 实际发送的消息要带上终止符
+    totalSize = NLMSG_SPACE(len + 1);    // 获取总长度，NLMSG_SPACE宏会计算消息加上首部再对齐后的长度
 
     skb = alloc_skb(totalSize, GFP_ATOMIC); //申请一个skb,长度为total_size,优先级为GFP_ATOMIC
     if (!skb) {
@@ -207,13 +207,13 @@ int sendMsgNetLink(char *message, int len) {
 #endif
 
     // 填充nlh的载荷部分，NLMSG_DATA宏用于取得nlh载荷部分首地址
-    strncpy(NLMSG_DATA(nlh), message, len - 1);
-    strncpy(NLMSG_DATA(nlh) + len - 1, "", 1);
+    strncpy(NLMSG_DATA(nlh), message, len);
+    strncpy(NLMSG_DATA(nlh) + len, "", 1);
 //    DEBUG("my_net_link:send message '%s'.\n", (char *) NLMSG_DATA(nlh));
 
     //nlh->nlmsg_len = skb->tail - old_tail;  // 获取当前skb中填充消息的长度
     // 为python客户端尝试另一种填充长度的方法
-    nlh->nlmsg_len = len + sizeof(struct nlmsghdr);
+    nlh->nlmsg_len = len + 1 + sizeof(struct nlmsghdr);
 
     // 设置控制字段
     //NETLINK_CB(skb).pid = 0;  // 消息发送者为内核，所以pid为0

@@ -65,12 +65,44 @@ char *in_ntoa(char *sip, __u32 in) {
 }
 
 int isImportantEvent(char *event, int eventLen) {
+    if (eventLen < sizeof(TAG_HEAD) + sizeof(TAG_TAIL)) {
+        return 0;
+    }
     char *important_flag_pos;
-    important_flag_pos = strstr(event + sizeof(TAG_HEAD), IMPORTANT_EVENT_NAME_1);
+    important_flag_pos = searchStr(event + sizeof(TAG_HEAD), eventLen - sizeof(TAG_HEAD), IMPORTANT_EVENT_NAME_1,
+                                   sizeof(IMPORTANT_EVENT_NAME_1));
     if (important_flag_pos == NULL || important_flag_pos > event + eventLen) {
         return 0;
     }
     else {
         return 1;
     }
+}
+
+char *searchStr(char *originStr, int originStrLen, const char *patternStr, int patternStrLen) {
+    int isPattern = 0;
+    char *p = NULL;
+    int originStrOffset = 0;
+    int patternStrOffset = 0;
+    if (originStrLen < patternStrLen) {
+        return NULL;
+    }
+    for (; originStrLen > 0; --originStrLen, ++originStr) {
+        isPattern = 1;
+        originStrOffset = 0;
+        patternStrOffset = 0;
+        for (; originStrOffset < originStrLen && patternStrOffset < patternStrLen; ++originStrOffset, ++patternStrOffset) {
+            if (*(originStr + originStrOffset) != *(patternStr + patternStrOffset)) {
+                isPattern = 0;
+                break;
+            }
+        }
+        if (patternStrOffset < patternStrLen) {
+            isPattern = 0;
+        }
+        if (isPattern == 1) {
+            return originStr;
+        }
+    }
+    return NULL;
 }

@@ -144,11 +144,11 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
     // data指向UDP报文body
     data = (char*)udp_head + udp_head_len;
     data_len = ntohs(udp_head->len) - sizeof(struct udphdr);
-    DEBUG_LEN(data, data_len);
-    DEBUG("udp data len:%d", data_len);
+//    DEBUG_LEN(data, data_len);
+//    DEBUG("udp data len:%d", data_len);
 
     // 6. 在data中搜索匹配head
-    tag_head = strstr(data, TAG_HEAD);
+    tag_head = searchStr(data, data_len, TAG_HEAD, sizeof(TAG_HEAD));
     if (tag_head == NULL) {
         DEBUG("search head failed!");
         return NF_ACCEPT;
@@ -158,7 +158,7 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
     }
 
     // 在data中继续搜索匹配tail
-    tag_tail =strstr(data, TAG_TAIL);
+    tag_tail = searchStr(tag_head + sizeof(TAG_HEAD), data_len - (tag_head - data) - sizeof(TAG_HEAD), TAG_TAIL, sizeof(TAG_TAIL));
     if (tag_tail == NULL) {
         DEBUG("search tail failed!");
         return NF_ACCEPT;
@@ -168,7 +168,7 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
     }
 
     // 确定事件长度
-    tag_len = tag_tail - tag_head + sizeof(TAG_TAIL) - 1;
+    tag_len = tag_tail - tag_head + sizeof(TAG_TAIL);
 
     // 判断事件是不是关键事件
     important_flag = isImportantEvent(tag_head, tag_len);
