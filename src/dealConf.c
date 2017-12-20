@@ -64,24 +64,23 @@ char *in_ntoa(char *sip, __u32 in) {
     return sip;
 }
 
-int isImportantEvent(char *event, int eventLen) {
-    if (eventLen < sizeof(TAG_HEAD) + sizeof(TAG_TAIL)) {
+char *isImportantEvent(char *event, int eventLen) {
+    // 减去首尾长度
+    eventLen -= (sizeof(TAG_HEAD) - 1) + (sizeof(TAG_TAIL) - 1);
+    // 太短肯定找不到
+    if (eventLen <= 0) {
         return 0;
     }
-    char *important_flag_pos;
-    important_flag_pos = searchStr(event + sizeof(TAG_HEAD), eventLen - sizeof(TAG_HEAD), IMPORTANT_EVENT_NAME_1,
-                                   sizeof(IMPORTANT_EVENT_NAME_1));
-    if (important_flag_pos == NULL || important_flag_pos > event + eventLen) {
-        return 0;
-    }
-    else {
-        return 1;
-    }
+
+    return searchStr(event + (sizeof(TAG_HEAD) - 1), eventLen, IMPORTANT_EVENT_NAME_1,
+                                   sizeof(IMPORTANT_EVENT_NAME_1) - 1);
 }
 
 char *searchStr(char *originStr, int originStrLen, const char *patternStr, int patternStrLen) {
+    DEBUG("origin str is %.*s", originStrLen, originStr);
+    DEBUG("pattern str is %.*s:", patternStrLen, patternStr);
+
     int isPattern = 0;
-    char *p = NULL;
     int originStrOffset = 0;
     int patternStrOffset = 0;
     if (originStrLen < patternStrLen) {
@@ -101,8 +100,10 @@ char *searchStr(char *originStr, int originStrLen, const char *patternStr, int p
             isPattern = 0;
         }
         if (isPattern == 1) {
+            DEBUG("str search success");
             return originStr;
         }
     }
+    DEBUG("str search failed");
     return NULL;
 }

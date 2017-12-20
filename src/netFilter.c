@@ -100,7 +100,7 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
 
     // 关键事件标志
     char *important_flag_pos;
-    int important_flag;
+//    int important_flag;
 
 //    // 1. 判断是否已经有客户端连接
 //    read_lock_bh(&userInfo.lock);
@@ -144,11 +144,12 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
     // data指向UDP报文body
     data = (char*)udp_head + udp_head_len;
     data_len = ntohs(udp_head->len) - sizeof(struct udphdr);
+    DEBUG("udp data is %.*s", data_len, data);
 //    DEBUG_LEN(data, data_len);
 //    DEBUG("udp data len:%d", data_len);
 
     // 6. 在data中搜索匹配head
-    tag_head = searchStr(data, data_len, TAG_HEAD, sizeof(TAG_HEAD));
+    tag_head = searchStr(data, data_len, TAG_HEAD, sizeof(TAG_HEAD) - 1);
     if (tag_head == NULL) {
         DEBUG("search head failed!");
         return NF_ACCEPT;
@@ -158,7 +159,7 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
     }
 
     // 在data中继续搜索匹配tail
-    tag_tail = searchStr(tag_head + sizeof(TAG_HEAD), data_len - (tag_head - data) - sizeof(TAG_HEAD), TAG_TAIL, sizeof(TAG_TAIL));
+    tag_tail = searchStr(tag_head + (sizeof(TAG_HEAD) - 1), data_len - (tag_head - data) - (sizeof(TAG_HEAD) - 1), TAG_TAIL, sizeof(TAG_TAIL) - 1);
     if (tag_tail == NULL) {
         DEBUG("search tail failed!");
         return NF_ACCEPT;
@@ -168,16 +169,16 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
     }
 
     // 确定事件长度
-    tag_len = tag_tail - tag_head + sizeof(TAG_TAIL);
+    tag_len = tag_tail - tag_head + (sizeof(TAG_TAIL) - 1);
 
     // 判断事件是不是关键事件
-    important_flag = isImportantEvent(tag_head, tag_len);
+    important_flag_pos = isImportantEvent(tag_head, tag_len);
 
     // 7. 发送消息
 //    sendMsgNetLink(tag_head, tag_len);
 
     // 8. 消息发出后对关键事件使用完成量进行超时阻塞，非关键事件直接通过
-    if (important_flag == 1) {
+    if (important_flag_pos != NULL) {
         INFO("important event:%.*s", (int)tag_len, tag_head);
         sendMsgNetLink(tag_head, tag_len);
 

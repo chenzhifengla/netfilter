@@ -18,9 +18,9 @@ char *in_ntoa(char *sip, __u32 in);
  * 判断事件是不是关键事件
  * @param event 事件的起始位置
  * @param eventLen 事件的长度
- * @return 是否为关键事件
+ * @return 是关键事件返回name的起始位置，不是返回 NULL
  */
-int isImportantEvent(char *event, int eventLen);
+char *isImportantEvent(char *event, int eventLen);
 
 /**
  * 在字符串范围内搜索另一字符串
