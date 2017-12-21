@@ -78,7 +78,7 @@ char *isImportantEvent(char *event, int eventLen) {
 
 char *searchStr(char *originStr, int originStrLen, const char *patternStr, int patternStrLen) {
     DEBUG("origin str is %.*s", originStrLen, originStr);
-    DEBUG("pattern str is %.*s:", patternStrLen, patternStr);
+    DEBUG("pattern str is %.*s", patternStrLen, patternStr);
 
     int isPattern = 0;
     int originStrOffset = 0;

@@ -102,13 +102,13 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
     char *important_flag_pos;
 //    int important_flag;
 
-//    // 1. 判断是否已经有客户端连接
-//    read_lock_bh(&userInfo.lock);
-//    if (userInfo.pid == 0) {
-//        read_unlock_bh(&userInfo.lock);
-//        return NF_ACCEPT;
-//    }
-//    read_unlock_bh(&userInfo.lock);
+    // 1. 判断是否已经有客户端连接
+    read_lock_bh(&userInfo.lock);
+    if (userInfo.pid == 0) {
+        read_unlock_bh(&userInfo.lock);
+        return NF_ACCEPT;
+    }
+    read_unlock_bh(&userInfo.lock);
 
     // 2. 判断是否为无效或者空数据包
     eth = eth_hdr(skb); // 获得以太网帧首部指针
@@ -144,7 +144,14 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
     // data指向UDP报文body
     data = (char*)udp_head + udp_head_len;
     data_len = ntohs(udp_head->len) - sizeof(struct udphdr);
-    DEBUG("udp data is %.*s", data_len, data);
+//    DEBUG("udp data is %.*s", data_len, data);
+//    DEBUG("udp data[0]=%d,%x", *data, *data);
+//    DEBUG("udp data[1]=%d,%x", *(data + 1), *(data + 1));
+//    DEBUG("udp data[2]=%d,%x", *(data + 2), *(data + 2));
+//    DEBUG("udp data[3]=%d,%x", *(data + 3), *(data + 3));
+//    DEBUG("udp data[4]=%d,%x", *(data + 4), *(data + 4));
+
+
 //    DEBUG_LEN(data, data_len);
 //    DEBUG("udp data len:%d", data_len);
 
@@ -182,8 +189,11 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
         INFO("important event:%.*s", (int)tag_len, tag_head);
         sendMsgNetLink(tag_head, tag_len);
 
+#ifdef LOG_TIME
         do_gettimeofday(&startTime);
+#endif
         if (wait_for_completion_timeout(&msgCompletion, KERNEL_WAIT_MILISEC) == 0) {
+#ifdef LOG_TIME
             do_gettimeofday(&endTime);
             DEBUG("start sec is %d", startTime.tv_sec);
             DEBUG("end sec is %d", endTime.tv_sec);
@@ -192,6 +202,7 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
             timeSec = timeUSec / 1000000;
             timeUSec -= timeSec * 1000000;
             DEBUG("wait %ld s, %ld us, timeout", timeSec, timeUSec);
+#endif
 
             write_lock_bh(&timeoutStruct.lock);
             ++timeoutStruct.timeoutTimes;
@@ -200,6 +211,7 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
             return NF_ACCEPT;
         }
         else {
+#ifdef LOG_TIME
             do_gettimeofday(&endTime);
             DEBUG("start sec is %d", startTime.tv_sec);
             DEBUG("end sec is %d", endTime.tv_sec);
@@ -207,9 +219,11 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
             timeUSec = (endTime.tv_sec - startTime.tv_sec) * 1000000 + endTime.tv_usec - startTime.tv_usec;
             timeSec = timeUSec / 1000000;
             timeUSec -= timeSec * 1000000;
-
+#endif
             WARNING("recvd response");
+#ifdef LOG_TIME
             DEBUG("wait %ld s, %ld us", timeSec, timeUSec);
+#endif
         }
 
         // 直接读userCmd
