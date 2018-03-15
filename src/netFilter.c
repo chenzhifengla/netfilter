@@ -16,6 +16,7 @@
 #include <linux/uaccess.h>
 #include <linux/string.h>
 #include <linux/netfilter_bridge.h>
+#include <linux/version.h>
 
 #include "conf.h"
 #include "log.h"
@@ -29,9 +30,14 @@ extern UserInfo userInfo;   // netlink中的全局变量，表示用户PID信息
 
 extern TimeoutStruct timeoutStruct; // 对内核完成量超时次数的计数
 
+#ifdef LOG_TIME
 struct timeval startTime, endTime;
 unsigned long timeSec;
 unsigned long timeUSec;
+
+struct timex txc;
+struct rtc_time tm;
+#endif
 
 /**
  * 完成量，内核态发数据后阻塞等netlink收消息唤醒
@@ -72,14 +78,24 @@ int initNetFilter(void){
 
     //注册一个netFilter钩子
     INFO("register netFilter hook!\n");
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)
+    nf_register_net_hook(&init_net, &nfho_single);
+#else
     nf_register_hook(&nfho_single);
+#endif
 
     return 0;
 }
 
 void releaseNetFilter(void){
     INFO("unRegister netFilter hook!");
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)
+    nf_unregister_net_hook(&init_net, &nfho_single);
+#else
     nf_unregister_hook(&nfho_single);   // 卸载钩子
+#endif
 }
 
 unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct net_device *in,
@@ -100,7 +116,9 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
 
     // 关键事件标志
     char *important_flag_pos;
-//    int important_flag;
+
+    // 线性化SKB
+    skb_linearize(skb);
 
     // 1. 判断是否已经有客户端连接
     read_lock_bh(&userInfo.lock);
@@ -121,6 +139,7 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
         return NF_ACCEPT;
     }
 
+
     // IP head和body长度
     iph = ip_hdr(skb);  // 获得ip数据报首部指针，或者iph = (struct iphdr *) data;
 
@@ -130,6 +149,9 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
         // 比较配置中ip与获取ip的16进制形式
         return NF_ACCEPT;
     }
+
+    DEBUG("trigger netfilter hook func");
+
 
     // 5. 过滤掉非UDP协议
     if (iph->protocol != IPPROTO_UDP) {
@@ -144,16 +166,131 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
     // data指向UDP报文body
     data = (char*)udp_head + udp_head_len;
     data_len = ntohs(udp_head->len) - sizeof(struct udphdr);
-//    DEBUG("udp data is %.*s", data_len, data);
-//    DEBUG("udp data[0]=%d,%x", *data, *data);
-//    DEBUG("udp data[1]=%d,%x", *(data + 1), *(data + 1));
-//    DEBUG("udp data[2]=%d,%x", *(data + 2), *(data + 2));
-//    DEBUG("udp data[3]=%d,%x", *(data + 3), *(data + 3));
-//    DEBUG("udp data[4]=%d,%x", *(data + 4), *(data + 4));
+    DEBUG("udp data len is %d", data_len);
+
+    // 获取SKB的len和data_len;
+    unsigned int skb_len = skb->len;
+    unsigned int skb_data_len = skb->data_len;
+    DEBUG("skb_len = %u", skb_len);
+    DEBUG("skb_data_len = %u", skb_data_len);
+
+    // 数据切片指针
+    struct skb_shared_info *shinfo = skb_shinfo(skb);
+    if (shinfo == NULL) {
+        DEBUG("shinfo is null");
+        return NF_ACCEPT;
+    }
+    // 数据切片数量
+    unsigned int nr_frags = 0;
+    nr_frags = shinfo->nr_frags;
+    DEBUG("nr_frags = %u", nr_frags);
+
+    // 访问frags[0]
+    struct skb_frag_struct frags0 = shinfo->frags[0];
+    // 获取frags[0].size
+    unsigned int frags0Size = (unsigned int)frags0.size;
+    DEBUG("frags0Size = %u", frags0Size);
+    // 获取page_offset
+    unsigned int frags0PageOffset = (unsigned int)frags0.page_offset;
+    DEBUG("frags0PageOffset = %u", frags0PageOffset);
+
+    DEBUG("sizeof(struct page) = %u", sizeof(struct page));
+
+    struct page *frags0Page = frags0.page.p;
+    if (frags0Page == NULL) {
+        DEBUG("frags0Page is NULL");
+        return NF_ACCEPT;
+    }
+    else {
+        DEBUG("frags0Page is not NULL");
+    }
+
+//    // 访问page的slab
+//    struct kmem_cache *slab = frags0Page->slab_cache;
+//    if (slab == NULL) {
+//        DEBUG("slab is NULL");
+//        return NF_ACCEPT;
+//    }
+//    else {
+//        DEBUG("slab is not NULL");
+//    }
 
 
-//    DEBUG_LEN(data, data_len);
-//    DEBUG("udp data len:%d", data_len);
+//    frags0Page->flags;
+//    frags0Page->mapping;
+//    frags0Page->s_mem;
+//    frags0Page->compound_mapcount;
+//    frags0Page->index;
+//    frags0Page->freelist;
+//    frags0Page->counters;
+//    frags0Page->_mapcount;
+//    frags0Page->inuse;
+//    frags0Page->objects;
+//    frags0Page->frozen;
+//    frags0Page->units;
+//    frags0Page->_refcount;
+//    frags0Page->lru;
+//    frags0Page->pgmap;
+//    frags0Page->next;
+//    frags0Page->pages;
+//    frags0Page->pobjects;
+//    frags0Page->rcu_head;
+//    frags0Page->compound_head;
+//    frags0Page->compound_dtor;
+//    frags0Page->compound_order;
+//    frags0Page->__pad;
+//    frags0Page->pmd_huge_pte;
+//    frags0Page->private;
+//    frags0Page->ptl;
+//    frags0Page->slab_cache;
+//    frags0Page->mem_cgroup;
+
+
+
+//    // 获取frags[0].page
+//    char *frags0Page = frags0.page;
+//    if (frags0Page == NULL) {
+//        DEBUG("frags0Page is null");
+//    }
+//    else {
+//        DEBUG("frags0Page is not null");
+//    }
+
+//    // 访问frag_list
+//    struct sk_buff *frag_list = shinfo->frag_list;
+//    if (frag_list == NULL) {
+//        DEBUG("frag_list is null");
+//        return NF_ACCEPT;
+//    }
+//    else {
+//        DEBUG("frag_list is null");
+//    }
+//
+//    // 访问first_len
+//    int first_len = skb_pagelen(skb);
+//    DEBUG("first_len = %d", first_len);
+
+//    DEBUG_LEN(data, frags0Size);
+//    DEBUG("data:%s", data);
+//    DEBUG("data+500:%s", data + 500);
+//    DEBUG("data+1000:%s", data + 1000);
+//    DEBUG("data+1500:%s", data + 1500);
+//    DEBUG("data+2000:%s", data + 2000);
+    unsigned int data_size = 0;
+    for (; data_size < data_len; data_size += 500) {
+        DEBUG("data + %u:%s", data_size, data + data_size);
+    }
+
+
+    DEBUG("NF_ACCEPT");
+
+
+//    if (data_len > 200) {
+//        shinfo = skb_shinfo(skb);
+//        skb = shinfo->frag_list;
+//        data_len = ntohs(udp_hdr(skb)->len) - sizeof(struct udphdr);
+//        DEBUG("udp data len is %d", data_len);
+//    }
 
     // 6. 在data中搜索匹配head
     tag_head = searchStr(data, data_len, TAG_HEAD, sizeof(TAG_HEAD) - 1);
@@ -182,7 +319,7 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
     important_flag_pos = isImportantEvent(tag_head, tag_len);
 
     // 7. 发送消息
-//    sendMsgNetLink(tag_head, tag_len);
+    sendMsgNetLink(tag_head, tag_len);
 
     // 8. 消息发出后对关键事件使用完成量进行超时阻塞，非关键事件直接通过
     if (important_flag_pos != NULL) {
@@ -191,6 +328,9 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
 
 #ifdef LOG_TIME
         do_gettimeofday(&startTime);
+        do_gettimeofday(&(txc.time));
+        rtc_time_to_tm(txc.time.tv_sec, &tm);
+        DEBUG("UTC time:%d-%d-%d %d:%d:%d", tm.tm_year+1900, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
 #endif
         if (wait_for_completion_timeout(&msgCompletion, KERNEL_WAIT_MILISEC) == 0) {
 #ifdef LOG_TIME
@@ -241,7 +381,7 @@ unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct n
     }
     else {
         DEBUG("unimportant event:%.*s", (int)tag_len, tag_head);
-        sendMsgNetLink(tag_head, tag_len);
+//        sendMsgNetLink(tag_head, tag_len);
         return NF_ACCEPT;
     }
 }

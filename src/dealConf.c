@@ -65,24 +65,36 @@ char *in_ntoa(char *sip, __u32 in) {
 }
 
 char *isImportantEvent(char *event, int eventLen) {
+    char *pos = NULL;
+
     // 减去首尾长度
     eventLen -= (sizeof(TAG_HEAD) - 1) + (sizeof(TAG_TAIL) - 1);
     // 太短肯定找不到
     if (eventLen <= 0) {
         return 0;
     }
-
-    return searchStr(event + (sizeof(TAG_HEAD) - 1), eventLen, IMPORTANT_EVENT_NAME_1,
-                                   sizeof(IMPORTANT_EVENT_NAME_1) - 1);
+    pos = searchStr(event + (sizeof(TAG_HEAD) - 1), eventLen, IMPORTANT_EVENT_NAME_1,
+                          sizeof(IMPORTANT_EVENT_NAME_1) - 1);
+    if (pos != NULL) {
+        return pos;
+    } else {
+        pos = searchStr(event + (sizeof(TAG_HEAD) - 1), eventLen, IMPORTANT_EVENT_NAME_2,
+                        sizeof(IMPORTANT_EVENT_NAME_1) - 1);
+        if (pos != NULL) {
+            return pos;
+        }
+    }
+    return NULL;
 }
 
 char *searchStr(char *originStr, int originStrLen, const char *patternStr, int patternStrLen) {
-    DEBUG("origin str is %.*s", originStrLen, originStr);
-    DEBUG("pattern str is %.*s", patternStrLen, patternStr);
-
     int isPattern = 0;
     int originStrOffset = 0;
     int patternStrOffset = 0;
+
+//    DEBUG("origin str is %.*s", originStrLen, originStr);
+//    DEBUG("pattern str is %.*s", patternStrLen, patternStr);
+
     if (originStrLen < patternStrLen) {
         return NULL;
     }
@@ -90,7 +102,8 @@ char *searchStr(char *originStr, int originStrLen, const char *patternStr, int p
         isPattern = 1;
         originStrOffset = 0;
         patternStrOffset = 0;
-        for (; originStrOffset < originStrLen && patternStrOffset < patternStrLen; ++originStrOffset, ++patternStrOffset) {
+        for (; originStrOffset < originStrLen &&
+               patternStrOffset < patternStrLen; ++originStrOffset, ++patternStrOffset) {
             if (*(originStr + originStrOffset) != *(patternStr + patternStrOffset)) {
                 isPattern = 0;
                 break;
@@ -100,10 +113,10 @@ char *searchStr(char *originStr, int originStrLen, const char *patternStr, int p
             isPattern = 0;
         }
         if (isPattern == 1) {
-            DEBUG("str search success");
+//            DEBUG("str search success");
             return originStr;
         }
     }
-    DEBUG("str search failed");
+//    DEBUG("str search failed");
     return NULL;
 }

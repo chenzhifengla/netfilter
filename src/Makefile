@@ -15,6 +15,7 @@ PWD := $(shell pwd)
 KVER ?= $(shell uname -r)
 # 获取编译目标目录
 KDIR := /lib/modules/$(KVER)/build
+# KDIR := /usr/src/linux-headers-$(KVER)
 
 defalut:
     # 将各文件编译成.o的模块
